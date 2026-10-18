@@ -91,8 +91,8 @@ export function HomePage() {
         </Loading>
       )}
       {working && library.data && !empty && <Pictures library={library.data} />}
-      {working && library.data && !empty && <Glance />}
       {working && !empty && videos.length > 0 && <Languages videos={videos} />}
+      {working && library.data && !empty && <Glance />}
       {working && library.data && !empty && <ContinueWatching />}
       {working && library.data && !empty && <ComingUp all={allComing} onAll={setAllComing} />}
       {working && scan.data && library.data && !empty && (

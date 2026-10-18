@@ -101,6 +101,19 @@ def test_the_owners_choice_is_every_readers_poster_and_survives_a_refresh(
     assert conn.execute("SELECT poster_choice FROM titles WHERE id = 1").fetchone()[0] is None
 
 
+def test_anilists_cover_is_offered_once_whatever_size_the_title_has_of_it(
+    client: TestClient, conn: sqlite3.Connection, title: None
+):
+    with conn:
+        conn.execute(
+            "UPDATE titles SET poster = ? WHERE id = 1", (COVER.replace("/large/", "/medium/"),)
+        )
+
+    options = client.get("/titles/1/posters").json()["options"]
+
+    assert [each["source"] for each in options] == ["anilist", "tmdb", "tmdb", "tmdb"]
+
+
 def test_only_tmdbs_or_anilists_pictures_are_kept(client: TestClient, title: None):
     answer = client.put("/titles/1/poster", json={"poster": "https://example.com/x.jpg"})
 

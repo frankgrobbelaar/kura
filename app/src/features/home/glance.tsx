@@ -23,7 +23,7 @@ export function Glance() {
         <Tile
           label="Watched"
           value={hours(found.watched)}
-          note={found.watched > 0 ? `${watched}% of it` : "nothing yet in Kura's player"}
+          note={found.watched > 0 ? `${watched}% of it` : "none seen to the end yet"}
         />
         <Converting glance={found} />
         <Biggest glance={found} />

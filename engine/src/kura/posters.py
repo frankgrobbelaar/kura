@@ -73,16 +73,29 @@ def choices(
         cover = entry.cover_big or entry.cover if entry else None
         if cover and poster_address(cover):
             options.append(Option(cover, "anilist", None, None, None))
-    # The poster it has, first, even when TMDB lists it no longer.
+    # The poster it has, first, even when TMDB lists it no longer; AniList's cover once, whatever
+    # size the poster it has is of it.
     current = row["poster_choice"] or row["poster"]
     if current and poster_address(current):
-        have = next((each for each in options if each.poster == current), None)
+        have = next((each for each in options if _same(each.poster, current)), None)
         options = [
             have
             or Option(current, "tmdb" if current.startswith("/") else "anilist", None, None, None),
-            *(each for each in options if each.poster != current),
+            *(each for each in options if not _same(each.poster, current)),
         ]
     return Choices(row["poster"], row["poster_choice"], options, problem)
+
+
+def _same(one: str, other: str) -> bool:
+    """The same picture: the same TMDB image, or AniList's cover at any of its sizes (its address
+    names the size; the file's name is the picture's)."""
+    if one == other:
+        return True
+    return (
+        "anilist.co" in one
+        and "anilist.co" in other
+        and one.rsplit("/", 1)[-1] == other.rsplit("/", 1)[-1]
+    )
 
 
 def choose(conn: sqlite3.Connection, title_id: int, poster: str | None) -> bool:
