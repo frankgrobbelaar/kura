@@ -46,6 +46,10 @@ updates as any version does, and keeps everything you have.
 - One card needing your attention on Home is a card wide, rather than the whole row.
 - Deleting a video, on a title's page or "Which anime is this?", is in its ⋮ menu now, as
   "Delete…", beside what else you can do with it.
+- Sizes of a terabyte or more read in terabytes everywhere ("1.2 TB"), as Home's summary does.
+
+### Fixed
+- A title's page opens several times faster in a library of thousands of videos.
 
 ## 0.19.0 - 2026-10-15
 

@@ -89,12 +89,17 @@ def own_folder(conn: sqlite3.Connection, title_id: int, roots: list[Path]) -> Pa
     [folder] = folders
     if not any(folder != root and folder.is_relative_to(root) for root in roots):
         return None  # a library folder itself, or a folder outside the library
-    others = conn.execute(
-        """SELECT path FROM files
-           WHERE gone_at IS NULL AND title_id IS NOT NULL AND title_id != ?""",
-        (title_id,),
-    )
-    if any(Path(row["path"]).is_relative_to(folder) for row in others):
+    # Another anime's video in it, found by the database rather than by reading every path: a
+    # title's page asks this each time it opens, and a big library has thousands.
+    inside = str(folder).rstrip("\\/") + "\\"
+    shared = conn.execute(
+        """SELECT 1 FROM files
+           WHERE gone_at IS NULL AND title_id IS NOT NULL AND title_id != ?
+             AND lower(substr(path, 1, ?)) = lower(?)
+           LIMIT 1""",
+        (title_id, len(inside), inside),
+    ).fetchone()
+    if shared is not None:
         return None  # shared with another anime
     return folder
 
