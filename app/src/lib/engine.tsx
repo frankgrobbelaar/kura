@@ -724,6 +724,87 @@ export interface TitleAbout {
   tmdbId: number | null;
 }
 
+/** A video in full, for its details. */
+export interface FileDetails {
+  id: number;
+  path: string;
+  /** In bytes. */
+  size: number;
+  /** When Kura first found it. */
+  foundAt: string;
+  /** In seconds. */
+  duration: number | null;
+  /** Why it can't be read. */
+  problem: string | null;
+  titleId: number | null;
+  title: string | null;
+  season: number | null;
+  episode: number | null;
+  episodeEnd: number | null;
+  /** The (first) episode it holds, as TMDB names it. */
+  episodeName: string | null;
+  aired: string | null;
+  /** What happens in it: a spoiler, shown on asking. */
+  overview: string | null;
+  picture: {
+    codec: string;
+    width: number;
+    height: number;
+    bitDepth: number;
+    frameRate: number | null;
+  } | null;
+  sound: { language: string | null; codec: string; channels: number; lossless: boolean }[];
+  subtitles: {
+    language: string | null;
+    /** Null for a file beside the video. */
+    codec: string | null;
+    /** Words (ASS, SRT) rather than pictures (PGS, DVD). */
+    text: boolean;
+    /** Signs and songs only. */
+    forced: boolean;
+    /** A file beside the video rather than a track in it. */
+    beside: boolean;
+    /** English subtitles Kura made. */
+    made: boolean;
+  }[];
+  chapters: number;
+  /** Kura made it: its tag is inside. */
+  converted: boolean;
+  /** What converting it to the library's standard does. */
+  converting: {
+    state: "ready" | "to convert" | "broken";
+    method: Method | "rename" | "skip" | null;
+    /** In words: "SD 480p: the AI model brings it to 1080p". */
+    reasons: string[];
+  };
+}
+
+/** One episode as TMDB lists it, whether the library has it or not. */
+export interface EpisodeDetails {
+  season: number;
+  number: number;
+  name: string | null;
+  aired: string | null;
+  overview: string | null;
+  minutes: number | null;
+  /** Its video, when the library has it. */
+  fileId: number | null;
+}
+
+export const useFileDetails = (id: number | null) =>
+  useEngineQuery<FileDetails>(`/files/${id ?? 0}`, undefined, id !== null);
+export const useEpisodeDetails = (
+  titleId: number,
+  season: number,
+  number: number,
+  enabled = true,
+) =>
+  useEngineQuery<EpisodeDetails>(
+    `/titles/${titleId}/episodes/${season}/${number}`,
+    undefined,
+    enabled,
+  );
+
 /** A title's About panel alone: a franchise's page shows its lead's. */
 export const useTitleAbout = (id: number, enabled = true) =>
   useEngineQuery<TitleAbout>(`/titles/${id}/about`, undefined, enabled);

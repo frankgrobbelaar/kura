@@ -344,6 +344,13 @@ first, written for English readers and as current as the episode list, and AniLi
 and main studio first, anime's own words for them; either fills in what the other doesn't say.
 A title the library lacks shows AniList's alone, on a franchise's page.
 
+A video's details (`kura/api/files.py`, `GET /files/{id}`) are its row and what ffprobe read
+of it: the picture, each sound and subtitle track, the subtitle files beside it, chapters, and
+what converting it to the library's standard does, planned as Convert would. An episode's
+(`GET /titles/{id}/episodes/{season}/{number}`) are TMDB's, with its video when the library has
+it, so the missing ones open too. TMDB's synopsis of an episode is kept on its row as the episode
+list is refreshed.
+
 The title bar's search (`kura/search.py`, `GET /search?q=`) finds the library's anime by any
 name AniList says they go by, their episodes by code or name (the ones the library lacks too),
 and its videos by their files' names. Every word typed must be there, however a name is written:

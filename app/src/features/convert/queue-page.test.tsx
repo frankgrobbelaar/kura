@@ -364,6 +364,23 @@ describe("QueuePage", () => {
     expect(JSON.parse(String(init.body))).toEqual({ before: 6 });
   });
 
+  it("shows a file waiting in its folder, or copies its path", async () => {
+    fakeEngine({ "/queue": RUNNING });
+    renderQueue();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const path = job(7).path;
+
+    const more = await screen.findByRole("button", { name: "More for Dragon Ball Z · S01E07" });
+    fireEvent.keyDown(more, { key: "Enter" });
+    (await screen.findByRole("menuitem", { name: "Show in folder" })).click();
+    await waitFor(() => expect(shell.invoke).toHaveBeenCalledWith("show_in_folder", { path }));
+    fireEvent.keyDown(more, { key: "Enter" });
+    (await screen.findByRole("menuitem", { name: "Copy path" })).click();
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(path));
+    expect(await screen.findByText("Its path is copied.")).toBeInTheDocument();
+  });
+
   it("takes a whole season out of the queue at once", async () => {
     const fetch = fakeEngine({ "/queue": RUNNING, "POST /queue/remove": { changed: 2 } });
     renderQueue();

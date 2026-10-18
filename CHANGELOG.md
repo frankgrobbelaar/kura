@@ -13,6 +13,12 @@ shows these notes when it offers the update.
   stands and how long an episode lasts, as TMDB and AniList tell it, with its pages on both.
 - A franchise's page says what it's about and the years it spans, and a title you don't have
   opens to show what AniList knows of it: its synopsis, studio, genres and its page there.
+- Show a video in its folder or copy its path, from its row's menu wherever it's listed: a
+  title's videos, the queue, "Which anime is this?" and Tidy up.
+- A video's details: its episode's title and air date, what happens in it (hidden till you ask,
+  as it gives the story away), its picture, sound and subtitle tracks, length, size, where it is
+  and what converting it would do. Open them from the video's name or its menu; an episode you
+  don't have opens from the episode map or the missing list, a special from its list.
 
 ### Changed
 - Long names on the shelf's cards wrap onto a second line rather than trail off.

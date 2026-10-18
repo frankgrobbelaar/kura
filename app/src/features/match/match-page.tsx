@@ -3,12 +3,14 @@ import { RadioGroup } from "radix-ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Breadcrumb, LIBRARY } from "@/components/breadcrumb";
-import { type Asking, ConfirmDelete, Deleted, DeleteIcon, useDeleting } from "@/components/delete";
+import { type Asking, ConfirmDelete, Deleted, useDeleting } from "@/components/delete";
 import { EmptyState, ShelfIllustration } from "@/components/empty-state";
 import { EngineProblem } from "@/components/engine-problem";
+import { FileMenuItems, FileNote, useFileActions } from "@/components/file-actions";
 import { Loading, PanelSkeleton, Skeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MenuItem, MenuSeparator, RowMenu } from "@/components/ui/menu";
 import { Segmented } from "@/components/ui/segmented";
 import { type PlayItem, usePlayer } from "@/features/player/player-context";
 import {
@@ -124,6 +126,37 @@ export function MatchPage() {
       />
       {setAside}
       <EngineProblem queries={[review]} />
+    </>
+  );
+}
+
+/** A file's "More" menu: its folder, its path, and deleting it where the page offers that. How
+ * showing or copying went shows on a line of its own under the row. */
+function FileMenu(props: {
+  label: string;
+  file: { id: number; path: string; size: number };
+  deletes: Deletes | null;
+  where: string;
+}) {
+  const { file, deletes } = props;
+  const actions = useFileActions();
+  return (
+    <>
+      <RowMenu label={props.label}>
+        <FileMenuItems path={file.path} actions={actions} />
+        {deletes && (
+          <>
+            <MenuSeparator />
+            <MenuItem
+              danger
+              onSelect={() => deletes.ask({ what: "this file", where: props.where, files: [file] })}
+            >
+              Delete…
+            </MenuItem>
+          </>
+        )}
+      </RowMenu>
+      <FileNote actions={actions} className="basis-full pb-2 text-12 text-fg-muted" />
     </>
   );
 }
@@ -372,8 +405,7 @@ function MatchFile(props: {
   );
 }
 
-/** The file itself: its name, folder, three stills and what reading it showed, and a bin to
- * delete it. */
+/** The file itself: its name, folder, three stills and what reading it showed, and its menu. */
 function FilePanel({ file, deletes }: { file: WaitingFile; deletes: Deletes | null }) {
   const [name, folder] = split(file.path);
   const where = `file-${file.id}`;
@@ -391,19 +423,14 @@ function FilePanel({ file, deletes }: { file: WaitingFile; deletes: Deletes | nu
       aria-labelledby="file-title"
       className="flex min-w-0 flex-[1_1_380px] animate-fade-up flex-col gap-4 rounded-24 border border-edge bg-glass p-5.5 shadow-panel [animation-delay:60ms]"
     >
-      <div className="flex items-start gap-2">
+      <div className="flex flex-wrap items-start gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 id="file-title" className="font-medium font-mono text-15 [overflow-wrap:anywhere]">
             {name}
           </h2>
           <span className="font-mono text-12 text-fg-muted [overflow-wrap:anywhere]">{folder}</span>
         </div>
-        {deletes && (
-          <DeleteIcon
-            label="Delete this file"
-            onClick={() => deletes.ask({ what: "this file", where, files: [file] })}
-          />
-        )}
+        <FileMenu label="More for this file" file={file} deletes={deletes} where={where} />
       </div>
       {deletes?.confirm(where)}
       {file.minutes !== null && (
@@ -593,12 +620,7 @@ function UpNext(props: { files: WaitingFile[]; following: number[]; deletes: Del
                   ? "follows this choice"
                   : `${folder} · ${describe(file)}`}
               </span>
-              {deletes && (
-                <DeleteIcon
-                  label={`Delete ${name}`}
-                  onClick={() => deletes.ask({ what: "this file", where, files: [file] })}
-                />
-              )}
+              <FileMenu label={`More for ${name}`} file={file} deletes={deletes} where={where} />
               {asked && <div className="basis-full pb-3">{asked}</div>}
             </li>
           );
@@ -654,10 +676,7 @@ function SetAside({ deletes }: { deletes: Deletes }) {
               >
                 Match it
               </Button>
-              <DeleteIcon
-                label={`Delete ${name}`}
-                onClick={() => deletes.ask({ what: "this file", where, files: [file] })}
-              />
+              <FileMenu label={`More for ${name}`} file={file} deletes={deletes} where={where} />
               {asked && <div className="basis-full pb-3">{asked}</div>}
             </li>
           );

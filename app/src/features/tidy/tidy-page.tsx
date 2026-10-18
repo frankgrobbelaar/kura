@@ -4,10 +4,12 @@ import { Fragment, useState } from "react";
 import { useNavigate } from "react-router";
 import { EmptyState, ShelfIllustration } from "@/components/empty-state";
 import { EngineProblem } from "@/components/engine-problem";
+import { FileMenuItems, FileNote, useFileActions } from "@/components/file-actions";
 import { NoMatches, SearchField, useAddressSearch } from "@/components/search-field";
 import { Loading, PanelSkeleton, TilesSkeleton } from "@/components/skeleton";
 import { Stayed } from "@/components/stayed";
 import { Button } from "@/components/ui/button";
+import { RowMenu } from "@/components/ui/menu";
 import {
   type CopyFacts,
   type Duplicate,
@@ -451,6 +453,7 @@ function ChangeRow(props: {
   const { change } = props;
   const [name] = split(change.source);
   const quarantine = change.kind === "quarantine";
+  const files = useFileActions();
   return (
     <li
       className={cn(
@@ -459,15 +462,22 @@ function ChangeRow(props: {
       )}
     >
       <span className="flex flex-wrap items-center gap-2">
-        <span
-          className={cn(
-            "inline-flex h-5.5 items-center rounded-full px-2 font-extrabold text-11",
-            quarantine ? "bg-broken/20 text-broken-fg" : "bg-tint/8 text-fg-soft",
-          )}
-        >
-          {quarantine ? "Quarantine" : "Move"}
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex h-5.5 items-center rounded-full px-2 font-extrabold text-11",
+              quarantine ? "bg-broken/20 text-broken-fg" : "bg-tint/8 text-fg-soft",
+            )}
+          >
+            {quarantine ? "Quarantine" : "Move"}
+          </span>
+          <span className="font-bold">{change.label}</span>
         </span>
-        <span className="font-bold">{change.label}</span>
+        <span className="-my-1.5">
+          <RowMenu label={`More for ${name}`}>
+            <FileMenuItems path={change.source} actions={files} />
+          </RowMenu>
+        </span>
       </span>
       <span className="font-mono text-12 text-fg-muted [overflow-wrap:anywhere]">{name}</span>
       <span className="flex items-start gap-1.5 font-mono text-12 text-fg-soft [overflow-wrap:anywhere]">
@@ -477,6 +487,7 @@ function ChangeRow(props: {
       {change.taken && change.video === change.source && (
         <Taken change={change} skipped={props.skipped} onSkip={props.onSkip} />
       )}
+      <FileNote actions={files} />
     </li>
   );
 }
@@ -697,6 +708,7 @@ function CopyCard(props: {
 }) {
   const { copy } = props;
   const [name] = split(copy.path);
+  const files = useFileActions();
   return (
     <div
       className={cn(
@@ -714,7 +726,17 @@ function CopyCard(props: {
           <span className="text-11 text-fg-muted">{props.note}</span>
         )}
       </span>
-      <span className="font-mono text-12 [overflow-wrap:anywhere]">{name}</span>
+      <span className="flex items-start gap-1">
+        <span className="min-w-0 flex-1 pt-1.5 font-mono text-12 [overflow-wrap:anywhere]">
+          {name}
+        </span>
+        <span className="-mr-2">
+          <RowMenu label={`More for ${name}`}>
+            <FileMenuItems path={copy.path} actions={files} />
+          </RowMenu>
+        </span>
+      </span>
+      <FileNote actions={files} />
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-12">
         <dt className="text-fg-muted">Picture</dt>
         <dd className="font-mono">

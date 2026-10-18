@@ -32,6 +32,11 @@ and [../CLAUDE.md](../CLAUDE.md).
   "On AniList" / "On TMDB" come from `components/about.tsx`; the shell opens those pages by
   number (`lib/links.ts`), as the window can't open addresses itself. Panels with a heading are
   `components/panel.tsx`.
+- Wherever a video file shows, its row's "More" menu (`components/ui/menu.tsx`, Radix's dropdown)
+  has "Show in folder" and "Copy path" (`components/file-actions.tsx`), with a line under the row
+  saying how that went; deleting sits last, apart, as "Delete…". A title's videos and episodes
+  open in full in a side sheet (`features/title/video-sheet.tsx`), what happens in an episode
+  hidden till asked, as it gives the story away.
 - Lists of titles group them by type, series, movies, OVAs then specials (`KIND_ORDER` in
   `lib/kinds.ts`), through `components/title-groups.tsx`, except in the orders that look across
   types ("Recently added", "Most missing").

@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Breadcrumb, LIBRARY } from "@/components/breadcrumb";
 import { type Asking, ConfirmDelete, Deleted, DeleteIcon, useDeleting } from "@/components/delete";
 import { EngineProblem } from "@/components/engine-problem";
+import { FileMenuItems, FileNote, useFileActions } from "@/components/file-actions";
 import { Markdown } from "@/components/markdown";
 import { Panel } from "@/components/panel";
 import { Poster } from "@/components/poster";
@@ -11,6 +12,7 @@ import { NoMatches, SearchField, useAddressSearch } from "@/components/search-fi
 import { HeaderSkeleton, Loading, PanelSkeleton } from "@/components/skeleton";
 import { StatusLegend, StatusShape, statusWord } from "@/components/status";
 import { Button } from "@/components/ui/button";
+import { MenuItem, MenuSeparator, RowMenu } from "@/components/ui/menu";
 import { Segmented } from "@/components/ui/segmented";
 import { type PlayItem, usePlayer, usePlayingFile } from "@/features/player/player-context";
 import {
@@ -31,6 +33,7 @@ import { matches } from "@/lib/search";
 import { share } from "@/lib/share";
 import { cn } from "@/lib/utils";
 import { AboutPanel } from "./about-panel";
+import { type Opened, VideoSheet } from "./video-sheet";
 
 /** One anime or film: how much of it is there, its seasons and episode map, what's missing, its
  * specials and OVAs apart, its videos, and the gap analysis next to it. */
@@ -49,6 +52,9 @@ export function TitlePage() {
   // through every season's.
   const [shelf, setShelf] = useState<string | null>(null);
   const [query, setQuery] = useAddressSearch();
+  // A video or an episode opened, to tell of it in full.
+  const [opened, setOpened] = useState<Opened | null>(null);
+  const { play } = usePlayer();
   const videosAt = useRef<HTMLElement>(null);
   const toVideos = () => {
     const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -119,6 +125,15 @@ export function TitlePage() {
   const found = title.data;
   const numbered = found.episodes.filter((episode) => episode.season > 0);
   const specials = found.episodes.filter((episode) => episode.season === 0);
+  const openEpisode = (episode: EpisodeState) =>
+    setOpened({ episode: { season: episode.season, number: episode.number } });
+  const playVideo = (video: TitleFile) => {
+    const following = followingOf(found, video);
+    play(
+      following.map((each) => playItem(found, each)),
+      following.indexOf(video),
+    );
+  };
 
   return (
     <>
@@ -131,6 +146,16 @@ export function TitlePage() {
         current={found.name}
       />
       <Header title={found} onAsk={ask} />
+      <VideoSheet
+        title={found}
+        opened={opened}
+        onClose={() => setOpened(null)}
+        onPlay={(fileId) => {
+          const video = found.videos.find((each) => each.id === fileId);
+          setOpened(null);
+          if (video) playVideo(video);
+        }}
+      />
       {confirm("title")}
       {deleted && <Deleted result={deleted} onPutBack={() => setDeleted(null)} />}
       {unfit > 0 && <Unfit count={unfit} />}
@@ -147,12 +172,12 @@ export function TitlePage() {
               onAsk={ask}
               confirm={asking?.where.startsWith("season-") ? confirm(asking.where) : null}
             />
-            <EpisodeMap episodes={numbered} />
-            <MissingAndBroken title={found} episodes={numbered} />
+            <EpisodeMap episodes={numbered} onOpen={openEpisode} />
+            <MissingAndBroken title={found} episodes={numbered} onOpen={openEpisode} />
           </div>
           <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-5">
             <AboutPanel title={found} />
-            {specials.length > 0 && <Specials episodes={specials} />}
+            {specials.length > 0 && <Specials episodes={specials} onOpen={openEpisode} />}
             <ReportPanel titleId={found.id} />
           </div>
         </div>
@@ -163,6 +188,8 @@ export function TitlePage() {
         onShelf={setShelf}
         query={query}
         onQuery={setQuery}
+        onPlay={playVideo}
+        onDetails={(video) => setOpened({ video: video.id })}
         at={videosAt}
         onAsk={ask}
         confirm={confirm}
@@ -379,10 +406,11 @@ function Seasons(props: {
 
 /** Every numbered episode by its state, status by shape: a row of squares to each season, so a
  * long show reads season by season. */
-function EpisodeMap({ episodes }: { episodes: EpisodeState[] }) {
+function EpisodeMap(props: { episodes: EpisodeState[]; onOpen: (episode: EpisodeState) => void }) {
+  const { episodes } = props;
   const counted = new Map(episodes.map((episode, index) => [key(episode), index + 1]));
   return (
-    <Panel id="map-title" title="Episode map" note="Hover a square for the episode">
+    <Panel id="map-title" title="Episode map" note="Click a square for the episode">
       <div className="flex flex-col gap-2.5">
         {seasonsOf(episodes).map(([season, mine]) => (
           <div key={season} className="grid grid-cols-[5rem_1fr] items-start gap-3">
@@ -393,9 +421,13 @@ function EpisodeMap({ episodes }: { episodes: EpisodeState[] }) {
               className="flex flex-wrap gap-1"
             >
               {mine.map((episode) => (
-                <span
+                // The map is a picture to a screen reader: the lists below lead to each episode.
+                <button
+                  type="button"
+                  tabIndex={-1}
                   key={key(episode)}
-                  className="flex"
+                  onClick={() => props.onOpen(episode)}
+                  className="press flex cursor-pointer"
                   title={`S${pad(episode.season)}E${pad(episode.number)} · episode ${counted.get(
                     key(episode),
                   )}${episode.name ? ` · ${episode.name}` : ""} · ${statusWord(
@@ -403,7 +435,7 @@ function EpisodeMap({ episodes }: { episodes: EpisodeState[] }) {
                   ).toLowerCase()}`}
                 >
                   <StatusShape state={episode.state} className="size-3" />
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -434,7 +466,15 @@ function statesIn(episodes: EpisodeState[]): string {
     .join(", ");
 }
 
-function MissingAndBroken({ title, episodes }: { title: TitleDetail; episodes: EpisodeState[] }) {
+function MissingAndBroken({
+  title,
+  episodes,
+  onOpen,
+}: {
+  title: TitleDetail;
+  episodes: EpisodeState[];
+  onOpen: (episode: EpisodeState) => void;
+}) {
   const absolute = new Map(episodes.map((episode, index) => [key(episode), index + 1]));
   const rows = runs(
     episodes.filter((episode) => episode.state === "missing" || episode.state === "broken"),
@@ -452,25 +492,31 @@ function MissingAndBroken({ title, episodes }: { title: TitleDetail; episodes: E
           {rows.map(({ first, last, count }) => (
             <li
               key={key(first)}
-              className="col-span-3 grid min-h-10 grid-cols-subgrid items-center border-rule border-b text-13 last:border-b-0"
+              className="col-span-3 grid grid-cols-subgrid border-rule border-b text-13 last:border-b-0"
             >
-              <StatusShape state={first.state} className="size-3" />
-              <span className="font-mono">
-                S{pad(first.season)}E{pad(first.number)}
-                {count > 1 && `–E${pad(last.number)}`}
-              </span>
-              <span className="text-fg-muted">
-                {count > 1 ? (
-                  `Episodes ${absolute.get(key(first))} to ${absolute.get(key(last))} · ${count} missing`
-                ) : (
-                  <>
-                    Episode {absolute.get(key(first))}
-                    {first.name && !first.name.startsWith("Episode ") ? ` · ${first.name}` : ""}
-                    {` · ${first.state === "broken" ? "won't play" : "missing"}`}
-                    {first.aired ? ` · aired ${day(first.aired)}` : ""}
-                  </>
-                )}
-              </span>
+              <button
+                type="button"
+                onClick={() => onOpen(first)}
+                className="col-span-3 grid min-h-10 cursor-pointer grid-cols-subgrid items-center rounded-8 text-left hover:bg-tint/4"
+              >
+                <StatusShape state={first.state} className="size-3" />
+                <span className="font-mono">
+                  S{pad(first.season)}E{pad(first.number)}
+                  {count > 1 && `–E${pad(last.number)}`}
+                </span>
+                <span className="text-fg-muted">
+                  {count > 1 ? (
+                    `Episodes ${absolute.get(key(first))} to ${absolute.get(key(last))} · ${count} missing`
+                  ) : (
+                    <>
+                      Episode {absolute.get(key(first))}
+                      {first.name && !first.name.startsWith("Episode ") ? ` · ${first.name}` : ""}
+                      {` · ${first.state === "broken" ? "won't play" : "missing"}`}
+                      {first.aired ? ` · aired ${day(first.aired)}` : ""}
+                    </>
+                  )}
+                </span>
+              </button>
             </li>
           ))}
         </ul>
@@ -510,7 +556,8 @@ function runs(episodes: EpisodeState[]): Run[] {
   );
 }
 
-function Specials({ episodes }: { episodes: EpisodeState[] }) {
+function Specials(props: { episodes: EpisodeState[]; onOpen: (episode: EpisodeState) => void }) {
+  const { episodes } = props;
   const missing = episodes.filter((episode) => episode.state === "missing").length;
   return (
     <Panel
@@ -520,16 +567,19 @@ function Specials({ episodes }: { episodes: EpisodeState[] }) {
     >
       <ul className="flex flex-col">
         {episodes.map((episode) => (
-          <li
-            key={key(episode)}
-            className="grid min-h-9 grid-cols-[1rem_4.5rem_1fr] items-center gap-3 border-rule border-b text-13 last:border-b-0"
-          >
-            <StatusShape state={episode.state} className="size-3" />
-            <span className="font-mono">S00E{pad(episode.number)}</span>
-            <span className="truncate text-fg-muted">
-              {episode.name ?? "Special"}
-              {episode.aired ? ` · ${day(episode.aired)}` : ""}
-            </span>
+          <li key={key(episode)} className="border-rule border-b text-13 last:border-b-0">
+            <button
+              type="button"
+              onClick={() => props.onOpen(episode)}
+              className="grid min-h-9 w-full cursor-pointer grid-cols-[1rem_4.5rem_1fr] items-center gap-3 rounded-8 text-left hover:bg-tint/4"
+            >
+              <StatusShape state={episode.state} className="size-3" />
+              <span className="font-mono">S00E{pad(episode.number)}</span>
+              <span className="truncate text-fg-muted">
+                {episode.name ?? "Special"}
+                {episode.aired ? ` · ${day(episode.aired)}` : ""}
+              </span>
+            </button>
           </li>
         ))}
       </ul>
@@ -605,6 +655,8 @@ function Videos(props: {
   /** What's searched for, through every shelf: its episode's code or title, or its file's name. */
   query: string;
   onQuery: (query: string) => void;
+  onPlay: (video: TitleFile) => void;
+  onDetails: (video: TitleFile) => void;
   at: RefObject<HTMLElement | null>;
   onAsk: (asking: Asking) => void;
   confirm: (where: string) => ReactNode;
@@ -612,7 +664,6 @@ function Videos(props: {
   making: { fileId: number; share: number } | null;
 }) {
   const { title, query } = props;
-  const { play } = usePlayer();
   const playing = usePlayingFile();
   const all = shelves(title.videos);
   const shown =
@@ -625,19 +676,7 @@ function Videos(props: {
         .flatMap((shelf) => shelf.videos)
         .filter((video) => matches(query, ...foundBy(title, video), split(video.path)[0]))
     : shown.videos;
-  // What plays next: the rest of the season and the seasons after it; the specials, and files
-  // without a season, among themselves.
   const season = (shelf: Shelf) => shelf.key !== "0" && shelf.key !== "other";
-  const playFrom = (video: TitleFile) => {
-    const own = all.find((shelf) => shelf.videos.includes(video)) ?? shown;
-    const following = season(own)
-      ? all.filter(season).flatMap((shelf) => shelf.videos)
-      : own.videos;
-    play(
-      following.map((each) => playItem(title, each)),
-      following.indexOf(video),
-    );
-  };
   const numbered = found.some((video) => video.episode !== null);
   const heading =
     title.kind === "movie" ? (title.videos.length === 1 ? "Its file" : "Its files") : "Videos";
@@ -702,7 +741,8 @@ function Videos(props: {
               numbered={numbered}
               playing={playing === video.id}
               making={props.making?.fileId === video.id ? props.making.share : null}
-              onPlay={() => playFrom(video)}
+              onPlay={() => props.onPlay(video)}
+              onDetails={() => props.onDetails(video)}
               onAsk={props.onAsk}
               confirm={props.confirm(`video-${video.id}`)}
             />
@@ -722,11 +762,13 @@ function VideoRow(props: {
   /** Its subtitles being made, this far (percent); null otherwise. */
   making: number | null;
   onPlay: () => void;
+  onDetails: () => void;
   onAsk: (asking: Asking) => void;
   confirm: ReactNode;
 }) {
   const { video, playing } = props;
   const name = videoName(video);
+  const files = useFileActions();
   return (
     <li
       className={cn(
@@ -741,9 +783,17 @@ function VideoRow(props: {
           {video.episode !== null ? name : ""}
         </span>
       )}
-      <span className={cn("truncate", playing && "font-bold text-accent-fg")} title={video.path}>
+      <button
+        type="button"
+        onClick={props.onDetails}
+        title={video.path}
+        className={cn(
+          "cursor-pointer truncate text-left underline-offset-3 hover:underline",
+          playing && "font-bold text-accent-fg",
+        )}
+      >
         {shownName(props.title, video)}
-      </span>
+      </button>
       <Spoken video={video} making={props.making} />
       <span className={cn("text-12", playing ? "font-bold text-accent-fg" : "text-fg-muted")}>
         {playing ? "Playing" : video.problem ? "won't play" : facts(video)}
@@ -770,11 +820,19 @@ function VideoRow(props: {
           )}
         </button>
       )}
-      <DeleteIcon
-        label={`Delete ${name}`}
-        onClick={() => props.onAsk({ what: name, where: `video-${video.id}`, files: [video] })}
-      />
+      <RowMenu label={`More for ${name}`}>
+        <MenuItem onSelect={props.onDetails}>Details</MenuItem>
+        <FileMenuItems path={video.path} actions={files} />
+        <MenuSeparator />
+        <MenuItem
+          danger
+          onSelect={() => props.onAsk({ what: name, where: `video-${video.id}`, files: [video] })}
+        >
+          Delete…
+        </MenuItem>
+      </RowMenu>
       {props.confirm && <div className="col-span-full pb-2">{props.confirm}</div>}
+      <FileNote actions={files} className="col-span-full pb-2 text-12 text-fg-muted" />
     </li>
   );
 }
@@ -883,6 +941,16 @@ function byUse(codes: string[]): string[] {
 /** Whether a video can be watched in English: English sound, or English subtitles. */
 function english(video: TitleFile): boolean {
   return [...video.sound, ...video.subtitles].some(isEnglish);
+}
+
+/** What plays after a video: the rest of its season and the seasons after it; the specials,
+ * and files without a season, among themselves. */
+function followingOf(title: TitleDetail, video: TitleFile): TitleFile[] {
+  const all = shelves(title.videos);
+  const season = (shelf: Shelf) => shelf.key !== "0" && shelf.key !== "other";
+  const own = all.find((shelf) => shelf.videos.includes(video));
+  if (!own) return [video];
+  return season(own) ? all.filter(season).flatMap((shelf) => shelf.videos) : own.videos;
 }
 
 /** One season's videos, the specials', or those of files without a season. */

@@ -1,14 +1,15 @@
-import { AlertTriangle, Check, EllipsisVertical, Lock, Pause, Play } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
+import { AlertTriangle, Check, Lock, Pause, Play } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { CheckBox } from "@/components/check-box";
 import { EmptyState, ShelfIllustration } from "@/components/empty-state";
 import { EngineProblem } from "@/components/engine-problem";
+import { FileMenuItems, FileNote, useFileActions } from "@/components/file-actions";
 import { NoMatches, SearchField, useAddressSearch } from "@/components/search-field";
 import { Loading, PanelSkeleton } from "@/components/skeleton";
 import { fastSubtitles } from "@/components/this-pc";
 import { Button } from "@/components/ui/button";
+import { MenuItem, MenuSeparator, RowMenu } from "@/components/ui/menu";
 import { Switch } from "@/components/ui/switch";
 import { SpeechModelWait } from "@/features/subtitles/speech-model";
 import {
@@ -1141,6 +1142,7 @@ function JobRow(props: {
   const { job, first, top } = props;
   const action = useQueueAction();
   const remove = useRemoveFromQueue();
+  const files = useFileActions();
   const [name] = split(job.path);
   return (
     <li className="flex flex-col border-rule border-b px-1.5 text-13 last:border-b-0">
@@ -1184,55 +1186,33 @@ function JobRow(props: {
         <span className="w-14 shrink-0 text-right font-mono text-12 text-fg-muted">
           {job.retryAt === null && `≈ ${gpuTimeShort(job.gpuSeconds)}`}
         </span>
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger
-            aria-label={`More for ${job.label}`}
-            className="press inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-fg-muted"
-          >
-            <EllipsisVertical size={16} aria-hidden="true" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="end"
-              sideOffset={4}
-              className="z-50 flex min-w-44 flex-col rounded-16 border border-edge bg-dialog p-1.5 text-13 shadow-float"
+        <RowMenu label={`More for ${job.label}`}>
+          {!top && first !== null && (
+            <MenuItem
+              onSelect={() =>
+                action.mutate({ path: `/queue/${job.id}/move`, body: { before: first } })
+              }
             >
-              {!top && first !== null && (
-                <MenuItem
-                  onSelect={() =>
-                    action.mutate({ path: `/queue/${job.id}/move`, body: { before: first } })
-                  }
-                >
-                  {job.kind === "convert" ? "Convert next" : "Make next"}
-                </MenuItem>
-              )}
-              <MenuItem
-                onSelect={() =>
-                  action.mutate({ path: `/queue/${job.id}/move`, body: { before: null } })
-                }
-              >
-                Move to the end
-              </MenuItem>
-              <MenuItem onSelect={() => remove.mutate({ path: `/queue/${job.id}` })}>
-                Take out of the queue
-              </MenuItem>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+              {job.kind === "convert" ? "Convert next" : "Make next"}
+            </MenuItem>
+          )}
+          <MenuItem
+            onSelect={() =>
+              action.mutate({ path: `/queue/${job.id}/move`, body: { before: null } })
+            }
+          >
+            Move to the end
+          </MenuItem>
+          <MenuItem onSelect={() => remove.mutate({ path: `/queue/${job.id}` })}>
+            Take out of the queue
+          </MenuItem>
+          <MenuSeparator />
+          <FileMenuItems path={job.path} actions={files} />
+        </RowMenu>
       </div>
       <Problem error={action.error ?? remove.error} className="pb-3" />
+      <FileNote actions={files} className="pb-3 text-12 text-fg-muted" />
     </li>
-  );
-}
-
-function MenuItem({ onSelect, children }: { onSelect: () => void; children: React.ReactNode }) {
-  return (
-    <DropdownMenu.Item
-      onSelect={onSelect}
-      className="cursor-pointer rounded-10 px-3 py-2 font-bold text-fg-soft outline-none data-highlighted:bg-tint/6 data-highlighted:text-fg"
-    >
-      {children}
-    </DropdownMenu.Item>
   );
 }
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -114,6 +114,12 @@ function sent(fetch: ReturnType<typeof fakeEngine>, method: string, path: string
   return fetch.mock.calls.filter(
     ([input, init]) => (init?.method ?? "GET") === method && String(input).includes(path),
   );
+}
+
+/** Opens a "More" menu in a part of the page as a keyboard does, and picks one of its items. */
+async function fromMenu(scope: HTMLElement, menu: string, item: string) {
+  fireEvent.keyDown(within(scope).getByRole("button", { name: menu }), { key: "Enter" });
+  (await screen.findByRole("menuitem", { name: item })).click();
 }
 
 function renderTidy() {
@@ -236,6 +242,22 @@ describe("TidyPage", () => {
           String(input).includes(`keep=${encodeURIComponent(DUPLICATE.source)}`),
         ),
       ).toBe(true),
+    );
+  });
+
+  it("shows a change's file in its folder, and a copy's", async () => {
+    fakeEngine({ "/tidy": PROPOSAL });
+    renderTidy();
+
+    const bebop = await screen.findByRole("region", { name: "Cowboy Bebop" });
+    await fromMenu(bebop, "More for [Hi10] Cowboy_Bebop_-_01_(BD_720p).mkv", "Show in folder");
+    await waitFor(() =>
+      expect(shell.invoke).toHaveBeenCalledWith("show_in_folder", { path: BEBOP_1.source }),
+    );
+    const copies = screen.getByRole("region", { name: "Copies of Death Note · S01E07" });
+    await fromMenu(copies, "More for Death Note 07.avi", "Show in folder");
+    await waitFor(() =>
+      expect(shell.invoke).toHaveBeenCalledWith("show_in_folder", { path: DUPLICATE.source }),
     );
   });
 

@@ -944,6 +944,114 @@
         }
       }
     },
+    "/files/{file_id}": {
+      "get": {
+        "summary": "File Details",
+        "description": "A video in the library, in full.",
+        "operationId": "file_details_files__file_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/titles/{title_id}/episodes/{season}/{number}": {
+      "get": {
+        "summary": "Episode Details",
+        "description": "One of a title's episodes as TMDB lists it, and its video when the library has it.",
+        "operationId": "episode_details_titles__title_id__episodes__season___number__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "title_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Title Id"
+            }
+          },
+          {
+            "name": "season",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Season"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpisodeDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/search": {
       "get": {
         "summary": "Find",
@@ -3771,6 +3879,53 @@
         "title": "Convertible",
         "description": "A video not at the library's standard yet."
       },
+      "Converting": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "to convert",
+              "broken"
+            ],
+            "title": "State"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "rename",
+                  "remux",
+                  "reencode",
+                  "fast",
+                  "best",
+                  "skip"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "method",
+          "reasons"
+        ],
+        "title": "Converting",
+        "description": "What converting the video to the library's standard does."
+      },
       "CopyFacts": {
         "properties": {
           "path": {
@@ -4071,6 +4226,85 @@
         "title": "English",
         "description": "English the copy set aside has in it that the one kept hasn't, which Kura can add."
       },
+      "EpisodeDetails": {
+        "properties": {
+          "season": {
+            "type": "integer",
+            "title": "Season"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "aired": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aired"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes"
+          },
+          "fileId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fileid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "season",
+          "number",
+          "name",
+          "aired",
+          "overview",
+          "minutes",
+          "fileId"
+        ],
+        "title": "EpisodeDetails",
+        "description": "One episode as TMDB lists it, whether the library has it or not."
+      },
       "EpisodeFound": {
         "properties": {
           "titleId": {
@@ -4283,6 +4517,195 @@
           "size"
         ],
         "title": "Exported"
+      },
+      "FileDetails": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "foundAt": {
+            "type": "string",
+            "title": "Foundat"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "titleId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titleid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "episodeEnd": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episodeend"
+          },
+          "episodeName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episodename"
+          },
+          "aired": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aired"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PictureFacts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sound": {
+            "items": {
+              "$ref": "#/components/schemas/SoundFacts"
+            },
+            "type": "array",
+            "title": "Sound"
+          },
+          "subtitles": {
+            "items": {
+              "$ref": "#/components/schemas/SubtitleFacts"
+            },
+            "type": "array",
+            "title": "Subtitles"
+          },
+          "chapters": {
+            "type": "integer",
+            "title": "Chapters"
+          },
+          "converted": {
+            "type": "boolean",
+            "title": "Converted"
+          },
+          "converting": {
+            "$ref": "#/components/schemas/Converting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "path",
+          "size",
+          "foundAt",
+          "duration",
+          "problem",
+          "titleId",
+          "title",
+          "season",
+          "episode",
+          "episodeEnd",
+          "episodeName",
+          "aired",
+          "overview",
+          "picture",
+          "sound",
+          "subtitles",
+          "chapters",
+          "converted",
+          "converting"
+        ],
+        "title": "FileDetails"
       },
       "FileFound": {
         "properties": {
@@ -5685,6 +6108,46 @@
         ],
         "title": "Picture"
       },
+      "PictureFacts": {
+        "properties": {
+          "codec": {
+            "type": "string",
+            "title": "Codec"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "bitDepth": {
+            "type": "integer",
+            "title": "Bitdepth"
+          },
+          "frameRate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Framerate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codec",
+          "width",
+          "height",
+          "bitDepth",
+          "frameRate"
+        ],
+        "title": "PictureFacts"
+      },
       "Places": {
         "properties": {
           "best": {
@@ -6720,6 +7183,41 @@
         ],
         "title": "SkippedFile"
       },
+      "SoundFacts": {
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "codec": {
+            "type": "string",
+            "title": "Codec"
+          },
+          "channels": {
+            "type": "integer",
+            "title": "Channels"
+          },
+          "lossless": {
+            "type": "boolean",
+            "title": "Lossless"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "codec",
+          "channels",
+          "lossless"
+        ],
+        "title": "SoundFacts"
+      },
       "SoundTrack": {
         "properties": {
           "number": {
@@ -6807,6 +7305,58 @@
           "detail"
         ],
         "title": "Stopped"
+      },
+      "SubtitleFacts": {
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "codec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codec"
+          },
+          "text": {
+            "type": "boolean",
+            "title": "Text"
+          },
+          "forced": {
+            "type": "boolean",
+            "title": "Forced"
+          },
+          "beside": {
+            "type": "boolean",
+            "title": "Beside"
+          },
+          "made": {
+            "type": "boolean",
+            "title": "Made"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "codec",
+          "text",
+          "forced",
+          "beside",
+          "made"
+        ],
+        "title": "SubtitleFacts"
       },
       "SubtitleOptions": {
         "properties": {

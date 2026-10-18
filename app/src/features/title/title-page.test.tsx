@@ -4,7 +4,12 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PlayerLayer } from "@/features/player/player";
 import { PlayerProvider } from "@/features/player/player-context";
-import { EngineProvider, type EpisodeState, type TitleDetail } from "@/lib/engine";
+import {
+  EngineProvider,
+  type EpisodeState,
+  type FileDetails,
+  type TitleDetail,
+} from "@/lib/engine";
 import { fakeEngine, READY, SETTINGS } from "@/test/engine";
 import { TitlePage } from "./title-page";
 
@@ -101,6 +106,37 @@ const DBZ: TitleDetail = {
   ],
 };
 
+/** DBZ's first video in full, as its details tell of it. */
+const DETAILS: FileDetails = {
+  id: 1,
+  path: "D:\\Anime\\TV\\Dragon Ball Z (1989)\\Season 01\\Dragon Ball Z - S01E01.mkv",
+  size: 233_000_000,
+  foundAt: "2026-10-12T09:00:00+00:00",
+  duration: 1440,
+  problem: null,
+  titleId: 1,
+  title: "Dragon Ball Z",
+  season: 1,
+  episode: 1,
+  episodeEnd: null,
+  episodeName: "The Arrival",
+  aired: "1989-04-26",
+  overview: "A visitor lands with news from far away.",
+  picture: { codec: "h264", width: 640, height: 480, bitDepth: 8, frameRate: 23.976 },
+  sound: [{ language: "jpn", codec: "aac", channels: 2, lossless: false }],
+  subtitles: [
+    { language: "eng", codec: "ass", text: true, forced: false, beside: false, made: false },
+    { language: "eng", codec: null, text: true, forced: false, beside: true, made: true },
+  ],
+  chapters: 4,
+  converted: false,
+  converting: {
+    state: "to convert",
+    method: "best",
+    reasons: ["SD 480p: the AI model brings it to 1080p"],
+  },
+};
+
 /** A video of DBZ's at S`season`E`episode` (none for a file without one), named `name`. */
 function video(id: number, season: number | null, episode: number | null, name: string) {
   return {
@@ -168,6 +204,12 @@ function renderTitle(
     </QueryClientProvider>,
   );
   return fetch;
+}
+
+/** Opens a row's "More" menu as a keyboard does, and picks one of its items. */
+async function fromMenu(menu: string, item: string) {
+  fireEvent.keyDown(await screen.findByRole("button", { name: menu }), { key: "Enter" });
+  (await screen.findByRole("menuitem", { name: item })).click();
 }
 
 function sent(fetch: ReturnType<typeof fakeEngine>, method: string, path: string) {
@@ -385,7 +427,7 @@ describe("TitlePage", () => {
       "POST /plans/12/undo": DELETED,
     });
 
-    (await screen.findByRole("button", { name: "Delete S01E01" })).click();
+    await fromMenu("More for S01E01", "Delete…");
     const asking = await screen.findByRole("group", { name: "Delete S01E01?" });
     await waitFor(() =>
       expect(asking).toHaveTextContent(
@@ -414,7 +456,7 @@ describe("TitlePage", () => {
     };
     renderTitle(DBZ, undefined, null, { "POST /files/delete": stayed });
 
-    (await screen.findByRole("button", { name: "Delete S01E01" })).click();
+    await fromMenu("More for S01E01", "Delete…");
     (await screen.findByRole("button", { name: "Delete 1 video" })).click();
 
     const said = await screen.findByRole("region", { name: "Deleted" });
@@ -826,5 +868,115 @@ describe("TitlePage", () => {
     // The same button, so the keyboard keeps its place.
     expect(screen.getByRole("button", { name: "Playing S01E01" })).toBeInTheDocument();
     await waitFor(() => expect(sent(fetch, "POST", "/player")).toHaveLength(1));
+  });
+
+  it("tells of a video in full, keeping what happens in it hidden till asked", async () => {
+    renderTitle(DBZ, undefined, null, { "/files/1": DETAILS });
+
+    await fromMenu("More for S01E01", "Details");
+
+    const sheet = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    expect(sheet).toHaveTextContent("Dragon Ball Z · aired 26 Apr 1989");
+    expect(sheet).toHaveTextContent("What happens in it stays hidden: it gives the story away.");
+    expect(sheet).not.toHaveTextContent(DETAILS.overview ?? "");
+    within(sheet).getByRole("button", { name: "Show what happens" }).click();
+    expect(await within(sheet).findByText(DETAILS.overview ?? "")).toBeInTheDocument();
+    const file = within(sheet).getByRole("region", { name: "The file" });
+    expect(file).toHaveTextContent("640 × 480 · H.264 8-bit · 23.98 fps");
+    expect(file).toHaveTextContent("Japanese · AAC stereo");
+    expect(file).toHaveTextContent("English · in it");
+    expect(file).toHaveTextContent("English · beside it · made by Kura");
+    expect(file).toHaveTextContent("24:00");
+    expect(file).toHaveTextContent("233 MB");
+    expect(file).toHaveTextContent("SD 480p: the AI model brings it to 1080p");
+    expect(file).toHaveTextContent(DETAILS.path);
+  });
+
+  it("shows the video in its folder from its details, copies its path, and plays it", async () => {
+    const fetch = renderTitle(
+      DBZ,
+      undefined,
+      null,
+      { "/files/1": DETAILS, "POST /player": OPENED },
+      true,
+    );
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+
+    // The video's name opens its details too.
+    (await screen.findByTitle(DETAILS.path)).click();
+    const sheet = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    within(sheet).getByRole("button", { name: "Show in folder" }).click();
+    await waitFor(() =>
+      expect(shell.invoke).toHaveBeenCalledWith("show_in_folder", { path: DETAILS.path }),
+    );
+    within(sheet).getByRole("button", { name: "Copy path" }).click();
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(DETAILS.path));
+    expect(await within(sheet).findByText("Its path is copied.")).toBeInTheDocument();
+
+    within(sheet).getByRole("button", { name: "Play" }).click();
+    const player = await screen.findByRole("region", { name: "Player" });
+    expect(player).toHaveTextContent("Dragon Ball Z · S01E01");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(sent(fetch, "POST", "/player")).toHaveLength(1));
+  });
+
+  it("tells of an episode the library lacks, from the map and from the lists", async () => {
+    renderTitle(DBZ, undefined, null, {
+      "/titles/1/episodes/4/11": {
+        season: 4,
+        number: 11,
+        name: "The Ginyu Force",
+        aired: "1991-01-01",
+        overview: "Five strangers strike a pose.",
+        minutes: 24,
+        fileId: null,
+      },
+      "/titles/1/episodes/0/2": {
+        season: 0,
+        number: 2,
+        name: "Plan to Eradicate",
+        aired: "1993-08-06",
+        overview: null,
+        minutes: 52,
+        fileId: null,
+      },
+    });
+
+    const map = await screen.findByRole("region", { name: "Episode map" });
+    within(map).getByTitle("S04E11 · episode 50 · The Ginyu Force · missing").click();
+    let sheet = await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" });
+    expect(await within(sheet).findByText("Not in your library")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Show what happens" })).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
+    within(sheet).getByRole("button", { name: "Close" }).click();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    // The same episode from the list of what's missing, then a special from its own.
+    screen.getByRole("button", { name: /Episode 50 · The Ginyu Force · missing/ }).click();
+    sheet = await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" });
+    within(sheet).getByRole("button", { name: "Close" }).click();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    screen.getByRole("button", { name: /Plan to Eradicate/ }).click();
+    sheet = await screen.findByRole("dialog", { name: "S00E02 · Plan to Eradicate" });
+    expect(await within(sheet).findByText("Not in your library")).toBeInTheDocument();
+    expect(
+      within(sheet).queryByRole("button", { name: "Show what happens" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says why a video won't play in its details, and offers no Play", async () => {
+    const broken = DBZ.videos[0];
+    if (!broken) throw new Error("DBZ has a video.");
+    renderTitle({ ...DBZ, videos: [{ ...broken, problem: "No video stream" }] }, undefined, null, {
+      "/files/1": { ...DETAILS, problem: "No video stream", picture: null },
+    });
+
+    await fromMenu("More for S01E01", "Details");
+
+    const sheet = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    expect(await within(sheet).findByText("It won't play: No video stream")).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Show in folder" })).toBeInTheDocument();
   });
 });

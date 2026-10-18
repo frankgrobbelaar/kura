@@ -64,6 +64,12 @@ function sent(fetch: ReturnType<typeof fakeEngine>, method: string, path: string
   );
 }
 
+/** Opens a row's "More" menu as a keyboard does, and picks one of its items. */
+async function fromMenu(menu: string, item: string) {
+  fireEvent.keyDown(await screen.findByRole("button", { name: menu }), { key: "Enter" });
+  (await screen.findByRole("menuitem", { name: item })).click();
+}
+
 function renderMatch(at = "/match") {
   shell.invoke.mockImplementation(async (command: string) =>
     command === "engine_status" ? READY : undefined,
@@ -275,7 +281,11 @@ describe("MatchPage", () => {
     expect(screen.getByRole("link", { name: "Cowboy Bebop" })).toHaveAttribute("href", "/titles/1");
     expect(screen.getByText("Use this for its other 2 files")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Skip for now" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete this file" })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("button", { name: "More for this file" }), { key: "Enter" });
+    expect(await screen.findByRole("menuitem", { name: "Show in folder" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete…" })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
     expect(fetch.mock.calls.some(([input]) => String(input).endsWith("/review?title=1"))).toBe(
       true,
     );
@@ -306,7 +316,7 @@ describe("MatchPage", () => {
     });
     renderMatch();
 
-    (await screen.findByRole("button", { name: "Delete this file" })).click();
+    await fromMenu("More for this file", "Delete…");
     const asking = await screen.findByRole("group", { name: "Delete this file?" });
     await waitFor(() =>
       expect(asking).toHaveTextContent(
@@ -334,12 +344,12 @@ describe("MatchPage", () => {
     const fetch = fakeEngine({ "/review": QUEUE, "POST /files/delete": DELETED });
     renderMatch();
 
-    (await screen.findByRole("button", { name: "Delete [subs] ep04 final.mkv" })).click();
+    await fromMenu("More for [subs] ep04 final.mkv", "Delete…");
     (await screen.findByRole("button", { name: "Cancel" })).click();
     await waitFor(() =>
       expect(screen.queryByRole("group", { name: "Delete this file?" })).not.toBeInTheDocument(),
     );
-    screen.getByRole("button", { name: "Delete [subs] ep05 final.mkv" }).click();
+    await fromMenu("More for [subs] ep05 final.mkv", "Delete…");
     const asking = await screen.findByRole("group", { name: "Delete this file?" });
     within(asking).getByRole("button", { name: "Delete 1 video" }).click();
 
@@ -360,7 +370,7 @@ describe("MatchPage", () => {
     });
     renderMatch();
 
-    (await screen.findByRole("button", { name: "Delete this file" })).click();
+    await fromMenu("More for this file", "Delete…");
     (await screen.findByRole("button", { name: "Delete 1 video" })).click();
 
     expect(
@@ -397,7 +407,7 @@ describe("MatchPage", () => {
     await waitFor(() => expect(screen.queryByText("Special 08.mp4")).not.toBeInTheDocument());
     expect(sent(fetch, "DELETE", "/review/10/ignore")).toHaveLength(1);
 
-    screen.getByRole("button", { name: "Delete Special 07.mp4" }).click();
+    await fromMenu("More for Special 07.mp4", "Delete…");
     const asking = await screen.findByRole("group", { name: "Delete this file?" });
     within(asking).getByRole("button", { name: "Delete 1 video" }).click();
 
@@ -409,6 +419,29 @@ describe("MatchPage", () => {
         screen.queryByRole("heading", { name: "Set aside as not anime" }),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  it("shows a file in its folder, copies its path, and says when Explorer can't", async () => {
+    fakeEngine({ "/review": QUEUE });
+    renderMatch();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+
+    await fromMenu("More for this file", "Show in folder");
+    await waitFor(() =>
+      expect(shell.invoke).toHaveBeenCalledWith("show_in_folder", { path: QUEUE[0]?.path }),
+    );
+    await fromMenu("More for [subs] ep04 final.mkv", "Copy path");
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(QUEUE[1]?.path));
+    expect(await screen.findByText("Its path is copied.")).toBeInTheDocument();
+
+    shell.invoke.mockImplementation(async (command: string) => {
+      if (command === "engine_status") return READY;
+      if (command === "show_in_folder") throw "Windows can't find D:\\Anime\\Downloads.";
+      return undefined;
+    });
+    await fromMenu("More for this file", "Show in folder");
+    expect(await screen.findByText(/Windows can't find/)).toBeInTheDocument();
   });
 
   it("says when every file is matched", async () => {
