@@ -106,7 +106,7 @@ const LAPTOP = another(
   },
 );
 
-function renderConvert() {
+function renderConvert(address = "/convert") {
   shell.invoke.mockImplementation(async (command: string) =>
     command === "engine_status" ? READY : undefined,
   );
@@ -114,7 +114,7 @@ function renderConvert() {
   render(
     <QueryClientProvider client={queries}>
       <EngineProvider>
-        <MemoryRouter initialEntries={["/convert"]}>
+        <MemoryRouter initialEntries={[address]}>
           <Routes>
             <Route path="/convert" element={<ConvertPage />} />
             <Route path="/convert/queue" element={<p>The queue</p>} />
@@ -199,6 +199,14 @@ describe("ConvertPage", () => {
       screen.getByText("4:3 shows stay 4:3 at 1440 × 1080. Nothing is stretched or cropped."),
     ).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /Dragon Ball Z\s*3 left/ })).toBePartiallyChecked();
+  });
+
+  it("starts with the videos ticked on a title's page chosen", async () => {
+    fakeEngine({ "/convert": OPTIONS, "/franchises": FRANCHISES, "/queue": QUEUE });
+    renderConvert("/convert?files=1,2,junk");
+
+    expect(await screen.findAllByText("2 episodes")).toHaveLength(2); // the season, and the chip
+    expect(screen.getByRole("checkbox", { name: /Season 1/ })).toBeChecked();
   });
 
   it("says when a file gets less than the way chosen", async () => {

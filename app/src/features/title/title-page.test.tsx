@@ -200,6 +200,7 @@ function renderTitle(
             <Routes>
               <Route path="/titles/:id" element={<TitlePage />} />
               <Route path="/match" element={<MatchSearch />} />
+              <Route path="*" element={<Elsewhere />} />
             </Routes>
           </MemoryRouter>
           {player && <PlayerLayer />}
@@ -227,6 +228,12 @@ const DELETED = { planId: 12, moved: 0, quarantined: 1, problems: [] };
 
 function MatchSearch() {
   return <p>Match {useLocation().search}</p>;
+}
+
+/** Another page, by its address: Convert, or making English subtitles. */
+function Elsewhere() {
+  const at = useLocation();
+  return <p>Went to {at.pathname + at.search}</p>;
 }
 
 describe("TitlePage", () => {
@@ -446,6 +453,60 @@ describe("TitlePage", () => {
     expect(JSON.parse(String(init.body))).toEqual({ files: [1] });
     screen.getByRole("button", { name: "Put back" }).click();
     await waitFor(() => expect(sent(fetch, "POST", "/plans/12/undo")).toHaveLength(1));
+  });
+
+  it("ticks videos to mark several watched at once, or a whole season", async () => {
+    const two = { ...DBZ, videos: [...DBZ.videos, video(2, 1, 2, "S01E02")] };
+    const fetch = renderTitle(two, undefined, null, { "POST /files/watched": null });
+
+    expect(
+      await screen.findByText("Tick videos to mark, convert, subtitle or delete several at once"),
+    ).toBeInTheDocument();
+    screen.getByRole("checkbox", { name: "Tick S01E01" }).click();
+    const bar = await screen.findByRole("group", { name: "Ticked videos" });
+    expect(bar).toHaveTextContent("1 ticked");
+    expect(
+      screen.getByRole("checkbox", { name: "Tick every video of Season 1" }),
+    ).toBePartiallyChecked();
+    screen.getByRole("checkbox", { name: "Tick every video of Season 1" }).click();
+    expect(bar).toHaveTextContent("2 ticked");
+    within(bar).getByRole("button", { name: "Mark as watched" }).click();
+
+    await waitFor(() => expect(sent(fetch, "POST", "/files/watched")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "POST", "/files/watched") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({ files: [1, 2], watched: true });
+    expect(screen.queryByRole("group", { name: "Ticked videos" })).not.toBeInTheDocument();
+  });
+
+  it("converts ticked videos, or makes their English subtitles, from those pages", async () => {
+    const two = { ...DBZ, videos: [...DBZ.videos, video(2, 1, 2, "S01E02")] };
+    renderTitle(two);
+
+    (await screen.findByRole("checkbox", { name: "Tick S01E01" })).click();
+    screen.getByRole("checkbox", { name: "Tick S01E02" }).click();
+    within(await screen.findByRole("group", { name: "Ticked videos" }))
+      .getByRole("button", { name: "Convert" })
+      .click();
+
+    expect(await screen.findByText("Went to /convert?files=1,2")).toBeInTheDocument();
+  });
+
+  it("deletes ticked videos together, once asked", async () => {
+    const two = { ...DBZ, videos: [...DBZ.videos, video(2, 1, 2, "S01E02")] };
+    const fetch = renderTitle(two, undefined, null, {
+      "POST /files/delete": { ...DELETED, quarantined: 2 },
+    });
+
+    (await screen.findByRole("checkbox", { name: "Tick every video of Season 1" })).click();
+    within(await screen.findByRole("group", { name: "Ticked videos" }))
+      .getByRole("button", { name: "Delete…" })
+      .click();
+    const asking = await screen.findByRole("group", { name: "Delete 2 videos?" });
+    within(asking).getByRole("button", { name: "Delete 2 videos" }).click();
+
+    await waitFor(() => expect(sent(fetch, "POST", "/files/delete")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "POST", "/files/delete") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({ files: [1, 2] });
   });
 
   it("says which videos couldn't be deleted, and why", async () => {

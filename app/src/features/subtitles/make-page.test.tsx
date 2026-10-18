@@ -125,6 +125,24 @@ describe("MakeSubtitlesPage", () => {
     expect(screen.getByText("on this PC")).toBeInTheDocument();
   });
 
+  it("offers the videos ticked on the title's page first", async () => {
+    const fetch = engine();
+    renderMake("/subtitles?title=7&files=2,4");
+
+    const which = await screen.findByRole("radiogroup", { name: "Which videos" });
+    const [first] = within(which).getAllByRole("radio");
+    expect(first).toHaveTextContent("The 2 videos you ticked2 without English");
+    expect(first).toHaveAttribute("aria-checked", "true");
+    (await screen.findByRole("button", { name: "Make subtitles for 2 episodes" })).click();
+
+    expect(await screen.findByText("The queue")).toBeInTheDocument();
+    const [[, made]] = sent(fetch, "POST", "/subtitles") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(made.body))).toMatchObject({
+      fileIds: [2, 4],
+      title: "Starfall Academy · 2 videos",
+    });
+  });
+
   it("puts the season in the queue as one batch, then shows the queue", async () => {
     const fetch = engine();
     renderMake();

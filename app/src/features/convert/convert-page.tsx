@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { RadioGroup } from "radix-ui";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { CheckBox } from "@/components/check-box";
 import { EmptyState, ShelfIllustration } from "@/components/empty-state";
 import { EngineProblem } from "@/components/engine-problem";
@@ -41,6 +41,7 @@ import {
   type Way,
 } from "@/lib/engine";
 import { size } from "@/lib/format";
+import { idsIn } from "@/lib/ids";
 import { matches } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { ConvertTabs, Step } from "./convert-tabs";
@@ -106,7 +107,9 @@ export function ConvertPage() {
   // Settings: the estimates follow at once.
   const change = (part: Partial<Settings>) =>
     settings && save.mutate({ path: "/settings", body: { ...settings, ...part } });
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Opened from a title's ticked videos (`?files=4,5,6`), those start chosen.
+  const [params] = useSearchParams();
+  const [selected, setSelected] = useState<Set<number>>(() => new Set(idsIn(params.get("files"))));
   const [picked, setWay] = useState<Way | null>(null);
   const way = picked ?? firstWay(system.data);
   const [when, setWhen] = useState<When | null>(null);

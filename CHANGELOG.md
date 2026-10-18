@@ -30,6 +30,8 @@ shows these notes when it offers the update.
   checks each file it converts, and again a month on. What didn't play is listed on Home, to play
   and see, try again, call fine or mark as broken: nothing changes till you say. It's on unless
   you turn it off in Settings › Libraries.
+- Tick a title's videos to do several at once: mark them watched or not, convert them, make their
+  English subtitles or delete them. A whole season ticks at once.
 
 ### Changed
 - Long names on the shelf's cards wrap onto a second line rather than trail off.

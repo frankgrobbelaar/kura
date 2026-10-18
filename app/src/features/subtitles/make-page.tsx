@@ -24,9 +24,10 @@ import {
   useTools,
 } from "@/lib/engine";
 import { isEnglish, languageName, size } from "@/lib/format";
+import { idsIn } from "@/lib/ids";
 import { cn } from "@/lib/utils";
 
-type Scope = "season" | "title" | "everything";
+type Scope = "ticked" | "season" | "title" | "everything";
 type When = "now" | "nights" | "after";
 
 const QUALITIES: { quality: Quality; name: string; says: string }[] = [
@@ -66,6 +67,8 @@ export function MakeSubtitlesPage() {
   const [params] = useSearchParams();
   const titleId = Number(params.get("title")) || null;
   const asked = params.get("season");
+  // Opened from a title's ticked videos (`&files=4,5,6`): those, as one choice.
+  const ticked = idsIn(params.get("files"));
   const season = asked === null || Number.isNaN(Number(asked)) ? null : Number(asked);
   const navigate = useNavigate();
   const options = useSubtitleOptions();
@@ -87,7 +90,7 @@ export function MakeSubtitlesPage() {
   const all = options.data?.files ?? [];
   const mine = all.filter((file) => file.titleId === titleId);
   const name = mine[0]?.title ?? null;
-  const scopes = scopesFor(all, mine, name, season);
+  const scopes = scopesFor(all, mine, name, season, ticked);
   const chosen = scopes.find((each) => each.scope === scope) ?? scopes[0];
   const trail = titleId && name ? [LIBRARY, { label: name, to: `/titles/${titleId}` }] : [LIBRARY];
   const top = <Breadcrumb trail={trail} current="Make English subtitles" />;
@@ -384,6 +387,7 @@ function scopesFor(
   mine: Hearable[],
   name: string | null,
   season: number | null,
+  ticked: number[],
 ): ScopeChoice[] {
   const without = (files: Hearable[], also: boolean) => {
     const open = files.filter((file) => !file.waiting);
@@ -392,6 +396,17 @@ function scopesFor(
       : `${open.filter((file) => !file.english).length} without English`;
   };
   const found: ScopeChoice[] = [];
+  const picked = mine.filter((file) => ticked.includes(file.fileId));
+  if (name && picked.length > 0) {
+    const label = `The ${picked.length === 1 ? "video" : `${picked.length} videos`} you ticked`;
+    found.push({
+      scope: "ticked",
+      label,
+      title: `${name} · ${picked.length === 1 ? "1 video" : `${picked.length} videos`}`,
+      files: picked,
+      note: (also) => without(picked, also),
+    });
+  }
   const seasonal = season === null ? [] : mine.filter((file) => file.season === season);
   if (name && seasonal.length > 0) {
     const label = season === 0 ? "Specials" : `Season ${season}`;

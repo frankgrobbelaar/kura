@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Breadcrumb, LIBRARY } from "@/components/breadcrumb";
+import { CheckBox } from "@/components/check-box";
 import { type Asking, ConfirmDelete, Deleted, DeleteIcon, useDeleting } from "@/components/delete";
 import { EngineProblem } from "@/components/engine-problem";
 import { FileMenuItems, FileNote, useFileActions } from "@/components/file-actions";
@@ -710,6 +711,9 @@ function Videos(props: {
 }) {
   const { title, query } = props;
   const playing = usePlayingFile();
+  const navigate = useNavigate();
+  // Videos ticked to do several at once, kept as the season or the search changes.
+  const [picked, setPicked] = useState<ReadonlySet<number>>(new Set());
   const all = shelves(title.videos);
   const shown =
     all.find((shelf) => shelf.key === props.shelf) ??
@@ -737,6 +741,20 @@ function Videos(props: {
   const seasonal = !query && (season(shown) || shown.key === "0");
   const make = `/subtitles?title=${title.id}${seasonal ? `&season=${shown.key}` : ""}`;
   const count = title.videos.length;
+  const ticked = title.videos.filter((video) => picked.has(video.id));
+  const tickedShown = found.filter((video) => picked.has(video.id)).length;
+  const allShown =
+    tickedShown === 0 ? false : tickedShown === found.length ? true : ("mixed" as const);
+  const pick = (videos: TitleFile[], on: boolean) =>
+    setPicked((before) => {
+      const after = new Set(before);
+      for (const video of videos) {
+        if (on) after.add(video.id);
+        else after.delete(video.id);
+      }
+      return after;
+    });
+  const ids = ticked.map((video) => video.id).join(",");
   return (
     <Panel id="videos-title" at={props.at} title={heading} note={note}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -774,6 +792,83 @@ function Videos(props: {
           </Link>
         </div>
       </div>
+      {found.length > 0 && (
+        <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-2">
+          <label className="flex cursor-pointer">
+            <input
+              type="checkbox"
+              aria-label={query ? "Tick every video found" : `Tick every video of ${shown.label}`}
+              checked={allShown === true}
+              ref={(box) => {
+                if (box) box.indeterminate = allShown === "mixed";
+              }}
+              onChange={() => pick(found, allShown !== true)}
+              className="peer sr-only"
+            />
+            <CheckBox state={allShown} />
+          </label>
+          {ticked.length > 0 ? (
+            <fieldset aria-label="Ticked videos" className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 font-bold text-13">{ticked.length} ticked</span>
+              {ticked.every((video) => video.watched) ? (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    props.onWatched(ticked, false);
+                    setPicked(new Set());
+                  }}
+                >
+                  Mark as not watched
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    props.onWatched(ticked, true);
+                    setPicked(new Set());
+                  }}
+                >
+                  Mark as watched
+                </Button>
+              )}
+              <Button size="sm" onClick={() => void navigate(`/convert?files=${ids}`)}>
+                Convert
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => void navigate(`/subtitles?title=${title.id}&files=${ids}`)}
+              >
+                Make English subtitles
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-danger"
+                onClick={() =>
+                  props.onAsk({
+                    what:
+                      ticked.length === 1
+                        ? videoName(ticked[0] as TitleFile)
+                        : `${ticked.length} videos`,
+                    where: "videos-ticked",
+                    files: ticked,
+                  })
+                }
+              >
+                Delete…
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>
+                Untick all
+              </Button>
+            </fieldset>
+          ) : (
+            <span className="text-12 text-fg-muted">
+              Tick videos to mark, convert, subtitle or delete several at once
+            </span>
+          )}
+        </div>
+      )}
+      {props.confirm("videos-ticked")}
       {props.problem && (
         <p role="alert" className="text-13 text-broken-fg">
           {props.problem}
@@ -795,6 +890,8 @@ function Videos(props: {
               video={video}
               numbered={numbered}
               playing={playing === video.id}
+              picked={picked.has(video.id)}
+              onPick={(on) => pick([video], on)}
               making={props.making?.fileId === video.id ? props.making.share : null}
               onPlay={() => props.onPlay(video)}
               onDetails={() => props.onDetails(video)}
@@ -815,6 +912,8 @@ function VideoRow(props: {
   /** Its shelf numbers its episodes: the row starts with the episode's. */
   numbered: boolean;
   playing: boolean;
+  picked: boolean;
+  onPick: (on: boolean) => void;
   /** Its subtitles being made, this far (percent); null otherwise. */
   making: number | null;
   onPlay: () => void;
@@ -831,10 +930,20 @@ function VideoRow(props: {
       className={cn(
         "grid min-h-11 items-center gap-x-3 border-rule border-b py-1 text-13 last:border-b-0",
         props.numbered
-          ? "grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1.15fr)_auto_2.25rem_2rem]"
-          : "grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_auto_2.25rem_2rem]",
+          ? "grid-cols-[1.25rem_4.5rem_minmax(0,1fr)_minmax(0,1.15fr)_auto_2.25rem_2rem]"
+          : "grid-cols-[1.25rem_minmax(0,1fr)_minmax(0,1.15fr)_auto_2.25rem_2rem]",
       )}
     >
+      <label className="flex cursor-pointer">
+        <input
+          type="checkbox"
+          aria-label={`Tick ${name}`}
+          checked={props.picked}
+          onChange={(event) => props.onPick(event.target.checked)}
+          className="peer sr-only"
+        />
+        <CheckBox state={props.picked} />
+      </label>
       {props.numbered && (
         <span className={cn("font-mono text-12", playing && "font-bold text-accent-fg")}>
           {video.episode !== null ? name : ""}
