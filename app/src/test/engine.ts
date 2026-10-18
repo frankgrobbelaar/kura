@@ -29,6 +29,7 @@ export const SETTINGS: Settings = {
   originals: "quarantine",
   artwork: false,
   historyDays: null,
+  healthCheck: true,
 };
 
 export const NO_LIBRARY: Library = {

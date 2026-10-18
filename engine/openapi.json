@@ -1231,6 +1231,168 @@
         ]
       }
     },
+    "/checkup": {
+      "get": {
+        "summary": "Health Check",
+        "description": "How the health check stands, and the videos that didn't play.",
+        "operationId": "health_check_checkup_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Checkup"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/checkup/again": {
+      "post": {
+        "summary": "Check Again",
+        "description": "Every video is played again, from tonight.",
+        "operationId": "check_again_checkup_again_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/files/{file_id}/check": {
+      "post": {
+        "summary": "Check One",
+        "description": "Test-plays one video now, as the night's check does.",
+        "operationId": "check_one_files__file_id__check_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Played"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/{file_id}/plays": {
+      "post": {
+        "summary": "Plays After All",
+        "description": "The owner played it and it's fine: off the list, till next month's check.",
+        "operationId": "plays_after_all_files__file_id__plays_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/{file_id}/broken": {
+      "post": {
+        "summary": "Mark Broken",
+        "description": "The owner says it's broken: from now on it's a broken file, the check saying why.",
+        "operationId": "mark_broken_files__file_id__broken_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/search": {
       "get": {
         "summary": "Find",
@@ -3686,6 +3848,37 @@
         ],
         "title": "Checking",
         "description": "A check of this PC under way."
+      },
+      "Checkup": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On"
+          },
+          "checked": {
+            "type": "integer",
+            "title": "Checked"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "unplayed": {
+            "items": {
+              "$ref": "#/components/schemas/UnplayedVideo"
+            },
+            "type": "array",
+            "title": "Unplayed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "on",
+          "checked",
+          "total",
+          "unplayed"
+        ],
+        "title": "Checkup"
       },
       "Choice": {
         "properties": {
@@ -6691,6 +6884,26 @@
         ],
         "title": "PlanDone"
       },
+      "Played": {
+        "properties": {
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          }
+        },
+        "type": "object",
+        "required": [
+          "problem"
+        ],
+        "title": "Played"
+      },
       "PlayerState": {
         "properties": {
           "ready": {
@@ -7587,6 +7800,11 @@
               }
             ],
             "title": "Historydays"
+          },
+          "healthCheck": {
+            "type": "boolean",
+            "title": "Healthcheck",
+            "default": true
           }
         },
         "type": "object",
@@ -9054,6 +9272,101 @@
           "problem"
         ],
         "title": "Tool"
+      },
+      "UnplayedVideo": {
+        "properties": {
+          "fileId": {
+            "type": "integer",
+            "title": "Fileid"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "titleId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titleid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "episodeEnd": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episodeend"
+          },
+          "problem": {
+            "type": "string",
+            "title": "Problem"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fileId",
+          "path",
+          "titleId",
+          "title",
+          "season",
+          "episode",
+          "episodeEnd",
+          "problem",
+          "at"
+        ],
+        "title": "UnplayedVideo"
       },
       "ValidationError": {
         "properties": {

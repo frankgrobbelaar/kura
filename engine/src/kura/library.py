@@ -242,7 +242,7 @@ def _record(
                found_at = COALESCE(?, found_at),
                probed_at = NULL, probe = NULL, problem = NULL, marked_at = NULL,
                duration = NULL, width = NULL, height = NULL, codec = NULL,
-               sound = NULL, subtitles = NULL,
+               sound = NULL, subtitles = NULL, health_at = NULL, health_problem = NULL,
                identified_at = CASE WHEN pinned = 1 THEN identified_at END
            WHERE path = ?""",
         (folder_id, size, modified, stamp, found, str(path)),

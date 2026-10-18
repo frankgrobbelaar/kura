@@ -399,6 +399,8 @@ export interface Settings {
   artwork: boolean;
   /** Days History keeps what Kura did before it's cleared out each day, or null: for good. */
   historyDays: 7 | 30 | 90 | null;
+  /** Every video test-played overnight, a few at a time. */
+  healthCheck: boolean;
 }
 
 export const useSettings = () => useEngineQuery<Settings>("/settings");
@@ -410,6 +412,38 @@ export const useSaveSettings = () =>
     ["/settings", "/convert", "/queue", "/data", "/titles", "/franchises", "/library"],
     "PUT",
   );
+
+/** A video the overnight health check couldn't play. */
+export interface UnplayedVideo {
+  fileId: number;
+  path: string;
+  titleId: number | null;
+  title: string | null;
+  season: number | null;
+  episode: number | null;
+  episodeEnd: number | null;
+  /** "It didn't play at 12:05 (…)". */
+  problem: string;
+  /** When it was checked; null: it's to be played again. */
+  at: string | null;
+}
+
+/** How the health check stands: how many of the videos it plays were checked this month, and
+ * the ones that didn't play. */
+export interface Checkup {
+  on: boolean;
+  checked: number;
+  total: number;
+  unplayed: UnplayedVideo[];
+}
+
+export const useCheckup = () => useEngineQuery<Checkup>("/checkup");
+/** The owner's word on a video that didn't play, `{ path: "/files/7/plays" }` (it plays after
+ * all) or `"/files/7/broken"`; or every video played again: `"/checkup/again"`. */
+export const useCheckupAction = () =>
+  useEngineAction<void>(["/checkup", "/titles", "/franchises", "/library", "/convert"]);
+/** Plays one video again now, as the night's check does: `{ path: "/files/7/check" }`. */
+export const useCheckOne = () => useEngineAction<{ problem: string | null }>(["/checkup"]);
 
 /** A drive's quarantine folder: copies set aside and converted files' originals. */
 export interface Quarantined {

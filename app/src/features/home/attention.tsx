@@ -1,4 +1,12 @@
-import { ArrowRight, Captions, CircleHelp, FileWarning, FolderTree, ListX } from "lucide-react";
+import {
+  ArrowRight,
+  Captions,
+  CircleHelp,
+  FileWarning,
+  FolderTree,
+  ListX,
+  ShieldAlert,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -12,12 +20,15 @@ interface AttentionProps {
   broken: number;
   /** Folders holding more than one anime. */
   mixed: number;
+  /** Videos the overnight health check couldn't play. */
+  unplayed: number;
   /** Videos that can't be heard or read in English, and across how many anime. */
   noEnglish: number;
   noEnglishIn: number;
   onSubtitles: () => void;
   onMatch: () => void;
   onMissing: () => void;
+  onUnplayed: () => void;
 }
 
 /** What needs the owner, as the home board shows it; nothing changes until they review it. */
@@ -56,6 +67,18 @@ export function Attention(props: AttentionProps) {
         text={`Across ${count(props.noEnglishIn)} anime · Kura can make English subtitles from their sound`}
         action="Make English subtitles"
         onClick={props.onSubtitles}
+      />,
+    );
+  }
+  if (props.unplayed > 0) {
+    cards.push(
+      <Card
+        key="unplayed"
+        icon={<ShieldAlert size={18} />}
+        title={`${count(props.unplayed)} ${props.unplayed === 1 ? "video" : "videos"} didn't play`}
+        text="In the overnight health check · nothing changes till you say"
+        action="See which"
+        onClick={props.onUnplayed}
       />,
     );
   }

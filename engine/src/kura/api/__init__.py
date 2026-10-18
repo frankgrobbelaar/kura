@@ -23,6 +23,7 @@ from kura import __version__, changes, db
 from kura.anilist import AniList
 from kura.api import (
     backups,
+    checkup,
     coming,
     convert,
     data,
@@ -193,7 +194,14 @@ def create_app(
     )
     app.state.gpu = Gpu()
     app.state.player = Player(paths, lambda: _ffmpeg(app.state.tools))
-    app.state.care = Care(paths, app.state.scanner.hold, now=_now, transport=transport)
+    app.state.care = Care(
+        paths,
+        app.state.scanner.hold,
+        now=_now,
+        transport=transport,
+        programs=lambda: app.state.programs(),
+        notify=notify,
+    )
     # The middleware added last runs first: CORS answers the webview's preflight
     # checks, then only requests addressed to this PC get through.
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=LOCAL_HOSTS)
@@ -216,6 +224,7 @@ def create_app(
         files,
         watched,
         coming,
+        checkup,
         search,
         review,
         tidy,

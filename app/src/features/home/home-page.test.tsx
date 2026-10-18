@@ -292,6 +292,46 @@ describe("HomePage", () => {
     expect(sent(fetch, "DELETE", "/continue/3")).toHaveLength(1);
   });
 
+  it("lists the videos the health check didn't play, and takes the owner's word on each", async () => {
+    const unplayed = (fileId: number, episode: number) => ({
+      fileId,
+      path: `D:AnimeCowboy BebopS01E0${episode}.mkv`,
+      titleId: 2,
+      title: "Cowboy Bebop",
+      season: 1,
+      episode,
+      episodeEnd: null,
+      problem: "It didn't play at 12:05 (Invalid data found when processing input)",
+      at: "2026-10-18T01:30:00+02:00",
+    });
+    const fetch = engineWith({
+      "/folders": [FOLDER],
+      "/library": { ...NO_LIBRARY, folders: 1, files: 3, size: 407_000_000, sd: 3 },
+      "/scan": { ...NO_SCAN, state: "done", stage: "done", found: 3, toRead: 3, read: 3 },
+      "/checkup": { on: true, checked: 3, total: 3, unplayed: [unplayed(4, 4), unplayed(5, 5)] },
+      "POST /files/4/check": { problem: null },
+      "POST /files/5/broken": null,
+    });
+    renderHome(READY);
+
+    (await screen.findByRole("button", { name: /2 videos didn't play/ })).click();
+
+    const sheet = await screen.findByRole("dialog", { name: "Videos that didn't play" });
+    const [first, second] = within(sheet).getAllByRole("listitem") as [HTMLElement, HTMLElement];
+    expect(first).toHaveTextContent("Cowboy Bebop · S01E04");
+    expect(first).toHaveTextContent("It didn't play at 12:05");
+    within(first).getByRole("button", { name: "Try again" }).click();
+    expect(await within(first).findByText("It played this time.")).toBeInTheDocument();
+    fireEvent.keyDown(
+      within(second).getByRole("button", { name: "More for Cowboy Bebop · S01E05" }),
+      {
+        key: "Enter",
+      },
+    );
+    (await screen.findByRole("menuitem", { name: "Mark as broken" })).click();
+    await waitFor(() => expect(sent(fetch, "POST", "/files/5/broken")).toHaveLength(1));
+  });
+
   it("lists each show's next episode still to come, the soonest first", async () => {
     const day = (from: number) => {
       const when = new Date();

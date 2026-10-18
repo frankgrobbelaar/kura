@@ -30,6 +30,7 @@ class Settings(ApiModel):
     artwork: bool = False  # poster and background pictures next to each show, for media servers
     # Days History keeps what Kura did before it's cleared out each day, or None: for good.
     history_days: Literal[7, 30, 90] | None = None
+    health_check: bool = True  # every video test-played overnight (kura/checkup.py)
 
 
 @router.get("/settings")

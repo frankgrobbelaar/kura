@@ -366,6 +366,16 @@ or later that no video of the library's covers, from the episode lists Kura keep
 hourly while a show airs). On the day one airs, the watcher tells the owner as it looks around
 (`Watcher.tell_aired`, one notification for the day's), and `aired_told` keeps each told once.
 
+The health check (`kura/checkup.py`, run by `kura/care.py`) test-plays each video at night, the
+way each converted result is checked (`convert.test_play`: a few seconds at three points), for
+four minutes at a time, a few seconds apart, while there are videos due: never checked first,
+then those checked over a month ago. A file that changes is due again, and one Kura converts
+counts as checked as it's made. A video that doesn't play keeps what ffmpeg said
+(`files.health_problem`) and is listed for the owner (`GET /checkup`), one notification telling
+of the night's; it becomes broken only when the owner marks it so (`POST /files/{id}/broken`).
+`POST /files/{id}/check` plays one again now, and `POST /files/{id}/plays` takes it off the
+list till next month's check.
+
 The title bar's search (`kura/search.py`, `GET /search?q=`) finds the library's anime by any
 name AniList says they go by, their episodes by code or name (the ones the library lacks too),
 and its videos by their files' names. Every word typed must be there, however a name is written:

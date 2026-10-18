@@ -15,6 +15,8 @@ import {
   type DataSizes,
   type Settings,
   useAddFolder,
+  useCheckup,
+  useCheckupAction,
   useDataSizes,
   useFolders,
   useForgetFolder,
@@ -98,7 +100,12 @@ function Content({ section }: { section: Section }) {
     case "general":
       return <General />;
     case "libraries":
-      return <Libraries />;
+      return (
+        <>
+          <Libraries />
+          <HealthCheck />
+        </>
+      );
     case "standard":
       return <Standard />;
     case "titles":
@@ -225,6 +232,54 @@ function Libraries() {
       </ul>
       {folders.data?.length === 0 && (
         <p className="text-13 text-fg-muted">No folders yet. Add the one your anime is in.</p>
+      )}
+    </Panel>
+  );
+}
+
+/** The health check: on or off, how far this month's has got, and every video played again. */
+function HealthCheck() {
+  const stored = useSettings();
+  const save = useSaveSettings();
+  const checkup = useCheckup();
+  const again = useCheckupAction();
+  const settings = stored.data;
+  const found = checkup.data;
+  if (!settings) return null;
+  return (
+    <Panel
+      title="Health check"
+      note="A file can be damaged long after Kura read it. This finds out before you want it."
+    >
+      <Toggle
+        label="Test-play every video overnight"
+        text="Between 23:00 and 07:00, a few at a time, Kura plays a few seconds of each at three points, as it checks every file it converts, and again a month on. It changes nothing: what didn't play is listed on Home."
+        checked={settings.healthCheck}
+        onChange={(healthCheck) =>
+          save.mutate({ path: "/settings", body: { ...settings, healthCheck } })
+        }
+      />
+      {found && found.total > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-13 text-fg-muted">
+            {found.checked.toLocaleString("en-GB")} of {found.total.toLocaleString("en-GB")}{" "}
+            {found.total === 1 ? "video" : "videos"} checked this month
+            {found.unplayed.length > 0 && ` · ${found.unplayed.length} didn't play`}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={again.isPending || found.checked === 0}
+            onClick={() => again.mutate({ path: "/checkup/again" })}
+          >
+            Check them all again
+          </Button>
+        </div>
+      )}
+      {(save.error ?? again.error) && (
+        <p role="alert" className="text-13 text-broken-fg">
+          {(save.error ?? again.error)?.message}
+        </p>
       )}
     </Panel>
   );

@@ -938,7 +938,7 @@ def _record(
         conn.execute(
             """UPDATE files SET path = ?, size = ?, modified = ?, gone_at = NULL, probed_at = ?,
                       probe = ?, problem = NULL, duration = ?, width = ?, height = ?, codec = ?,
-                      sound = ?, subtitles = ?
+                      sound = ?, subtitles = ?, health_at = ?, health_problem = NULL
                WHERE id = ?""",
             (
                 str(path),
@@ -952,6 +952,7 @@ def _record(
                 video.codec if video else None,
                 json.dumps(track_languages(track.language for track in media.audio)),
                 json.dumps(track_languages(track.language for track in media.subtitles)),
+                now.isoformat(),  # its test play, as it was made, is its health check
                 file_id,
             ),
         )

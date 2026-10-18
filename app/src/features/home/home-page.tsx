@@ -13,6 +13,7 @@ import {
   type Scan,
   type TitleSort,
   useAddFolder,
+  useCheckup,
   useEngine,
   useFolders,
   useFranchises,
@@ -28,6 +29,7 @@ import { ComingUp } from "./coming-up";
 import { ContinueWatching } from "./continue-watching";
 import { Recovered } from "./recovered";
 import { Shelf } from "./shelf";
+import { UnplayedSheet } from "./unplayed";
 
 export function HomePage() {
   const engine = useEngine();
@@ -41,6 +43,8 @@ export function HomePage() {
   const [sort, setSort] = useState<TitleSort>("released");
   const [query, setQuery] = useAddressSearch();
   const [allComing, setAllComing] = useState(false);
+  const checkup = useCheckup();
+  const [unplayed, setUnplayed] = useState(false);
 
   const empty = folders.data?.length === 0;
   if (empty && settings.data && !settings.data.setUp) return <Navigate to="/setup" replace />;
@@ -96,6 +100,8 @@ export function HomePage() {
           missingIn={missing.length}
           broken={library.data.problems}
           mixed={scan.data.mixed}
+          unplayed={checkup.data?.unplayed.length ?? 0}
+          onUnplayed={() => setUnplayed(true)}
           noEnglish={withoutEnglish.length}
           noEnglishIn={new Set(withoutEnglish.map((video) => video.titleId)).size}
           onSubtitles={() => void navigate("/subtitles")}
@@ -108,6 +114,7 @@ export function HomePage() {
         />
       )}
       {working && !empty && <Shelf sort={sort} onSort={setSort} query={query} onQuery={setQuery} />}
+      <UnplayedSheet open={unplayed} onClose={() => setUnplayed(false)} />
     </>
   );
 }

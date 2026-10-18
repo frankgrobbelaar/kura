@@ -372,4 +372,10 @@ MIGRATIONS: Final[tuple[str, ...]] = (
         PRIMARY KEY (title_id, season, number)
     ) STRICT;
     """,
+    # 26. The health check (kura/checkup.py): when each video was last test-played overnight,
+    #     and what went wrong if it didn't play, for the owner to look at.
+    """
+    ALTER TABLE files ADD COLUMN health_at TEXT;
+    ALTER TABLE files ADD COLUMN health_problem TEXT;
+    """,
 )

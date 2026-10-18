@@ -155,6 +155,45 @@ describe("SettingsPage", () => {
     await waitFor(() => expect(sent(fetch, "DELETE", "/folders/2")).toHaveLength(1));
   });
 
+  it("test-plays every video overnight unless turned off, and plays them all again", async () => {
+    const fetch = fakeEngine({
+      "/folders": FOLDERS,
+      "/settings": SETTINGS,
+      "PUT /settings": SETTINGS,
+      "/checkup": {
+        on: true,
+        checked: 1204,
+        total: 1530,
+        unplayed: [
+          {
+            fileId: 4,
+            path: "D:AnimeS01E04.mkv",
+            titleId: 1,
+            title: "Starfall",
+            season: 1,
+            episode: 4,
+            episodeEnd: null,
+            problem: "It didn't play at 12:05 (Invalid data)",
+            at: "2026-10-18T01:30:00+02:00",
+          },
+        ],
+      },
+      "POST /checkup/again": null,
+    });
+    renderSettings();
+
+    const check = await screen.findByRole("switch", { name: "Test-play every video overnight" });
+    expect(check).toBeChecked();
+    expect(
+      await screen.findByText("1,204 of 1,530 videos checked this month · 1 didn't play"),
+    ).toBeInTheDocument();
+    screen.getByRole("button", { name: "Check them all again" }).click();
+    await waitFor(() => expect(sent(fetch, "POST", "/checkup/again")).toHaveLength(1));
+    check.click();
+    await waitFor(() => expect(sent(fetch, "PUT", "/settings")).toHaveLength(1));
+    expect(body(fetch, "PUT", "/settings")).toMatchObject({ healthCheck: false });
+  });
+
   it("changes the standard at once", async () => {
     const fetch = fakeEngine({
       "/folders": FOLDERS,

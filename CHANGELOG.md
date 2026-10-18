@@ -26,6 +26,10 @@ shows these notes when it offers the update.
   video you stopped or the next one up, played from where you left off.
 - "Coming up" on Home: each of your shows with an episode still to come, its next one and the day
   it airs. On the day one airs, Kura tells you, once, unless you have it already.
+- A health check: overnight, a few at a time, Kura test-plays every video at three points, as it
+  checks each file it converts, and again a month on. What didn't play is listed on Home, to play
+  and see, try again, call fine or mark as broken: nothing changes till you say. It's on unless
+  you turn it off in Settings › Libraries.
 
 ### Changed
 - Long names on the shelf's cards wrap onto a second line rather than trail off.
