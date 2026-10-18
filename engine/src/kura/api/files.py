@@ -31,6 +31,9 @@ class SoundFacts(ApiModel):
     codec: str
     channels: int
     lossless: bool
+    # The language is the one Whisper heard ("ja"), in a track that doesn't say its own, as Kura
+    # made English subtitles from it.
+    heard: bool
 
 
 class SubtitleFacts(ApiModel):
@@ -90,7 +93,7 @@ def file_details(file_id: int, conn: Database) -> FileDetails:
     """A video in the library, in full."""
     row = conn.execute(
         """SELECT f.*, t.name AS title, m.name AS made, m.size AS made_size,
-                  m.modified AS made_modified
+                  m.modified AS made_modified, m.sound AS heard_track, m.language AS heard
            FROM files AS f LEFT JOIN titles AS t ON t.id = f.title_id
            LEFT JOIN made_subtitles AS m ON m.file_id = f.id
            WHERE f.id = ? AND f.gone_at IS NULL""",
@@ -162,12 +165,14 @@ def file_details(file_id: int, conn: Database) -> FileDetails:
         else None,
         sound=[
             SoundFacts(
-                language=each.language,
+                language=each.language or (row["heard"] if heard else None),
                 codec=each.codec,
                 channels=each.channels,
                 lossless=each.lossless,
+                heard=heard,
             )
-            for each in (media.audio if media else ())
+            for number, each in enumerate(media.audio if media else ())
+            for heard in [not each.language and number == row["heard_track"] and bool(row["heard"])]
         ],
         subtitles=subtitles,
         chapters=media.chapters if media else 0,

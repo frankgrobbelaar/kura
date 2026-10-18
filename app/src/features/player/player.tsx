@@ -20,6 +20,7 @@ import {
   streamAddress,
   useEngine,
   usePlayerState,
+  usePositionNote,
 } from "@/lib/engine";
 import { showInFolder } from "@/lib/explorer";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,9 @@ type Problem =
 const MARGIN = 8; // the small player keeps this far inside the window
 const BELOW_TITLE_BAR = 60; // and below the title bar, its buttons always in reach
 const QUIET = 3000; // milliseconds before full screen's controls step aside
+const NOTE_EVERY = 10_000; // milliseconds between telling the engine where the video is
+const COUNTS = 10; // seconds played before Kura keeps where the video is: less is a look
+const OFFER = 8000; // milliseconds "Start over" stays, once a video picks up where it stopped
 
 /** The player over the page: small and movable anywhere in the window, or the whole of it. */
 export function PlayerLayer() {
@@ -56,6 +60,7 @@ export function PlayerLayer() {
       key={playing.turn}
       item={item}
       from={playing.from}
+      resumed={playing.resumed}
       onClose={close}
       onNext={next ? () => play(playing.items, playing.index + 1) : null}
     />
@@ -65,11 +70,14 @@ export function PlayerLayer() {
 function Playback(props: {
   item: PlayItem;
   from: number;
+  /** It picks up where it stopped last time. */
+  resumed: boolean;
   onClose: () => void;
   onNext: (() => void) | null;
 }) {
   const { item, onClose } = props;
   const engine = useEngine();
+  const note = usePositionNote();
   const ready = engine.state === "ready" ? engine : null;
   const { place, setPlace, full, setFull } = usePlayer();
   // Each opening of the video, from a point: Play again opens it afresh where it stopped.
@@ -89,6 +97,7 @@ function Playback(props: {
   const [idle, setIdle] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [over, setOver] = useState(false); // the pointer, or the keyboard, is on the player
+  const [offer, setOffer] = useState(props.resumed); // "Start over", for a moment
   const [volume, setVolume] = useState(() => liked().volume ?? 1);
   const [muted, setMuted] = useState(() => liked().muted ?? false);
   const element = useRef<HTMLVideoElement>(null);
@@ -109,6 +118,23 @@ function Playback(props: {
   const ticket = video?.ticket ?? null;
   const state = usePlayerState(ticket, subtitles);
   const duration = video?.duration ?? 0;
+
+  // Where it is, told to the engine every few seconds while it plays and as it stops, so Play
+  // picks it up there next time. A look of a few seconds isn't kept.
+  const played = useRef({ seconds: 0, clock: 0, noted: 0 });
+  const tell = useRef((_stopped: boolean) => {});
+  tell.current = (stopped: boolean) => {
+    if (played.current.seconds < COUNTS) return;
+    played.current.noted = Date.now();
+    note(item.fileId, position.current, duration || null, stopped);
+  };
+  useEffect(() => () => tell.current(true), []);
+  // Picked up where it stopped, it offers to start over, for a moment once it's playing.
+  useEffect(() => {
+    if (!offer || !started) return;
+    const timer = window.setTimeout(() => setOffer(false), OFFER);
+    return () => window.clearTimeout(timer);
+  }, [offer, started]);
 
   // Open the video: a ticket, what it offers, and the sound and subtitles to start with.
   useEffect(() => {
@@ -264,6 +290,7 @@ function Playback(props: {
     } else {
       setHeld(true);
       playing.pause();
+      tell.current(true);
     }
   }
 
@@ -414,10 +441,19 @@ function Playback(props: {
               const now = event.currentTarget.currentTime;
               setClock(now);
               if (source) position.current = source.at + now;
+              // Seconds actually played: a new stream starts its clock again, a seek jumps it.
+              const step = now - played.current.clock;
+              played.current.clock = now;
+              if (step > 0 && step < 2) played.current.seconds += step;
+              if (Date.now() - played.current.noted >= NOTE_EVERY) tell.current(false);
             }}
             onEnded={() => {
               if (duration > 0 && position.current < duration - 3) void explain(position.current);
-              else setEnded(true);
+              else {
+                setEnded(true);
+                position.current = duration;
+                tell.current(true);
+              }
             }}
             onError={() => {
               if (url) void explain(position.current);
@@ -430,6 +466,16 @@ function Playback(props: {
           {!problem && !shown && <GettingReady drive={video?.drive ?? ""} />}
           {!problem && shown && !started && <Note>Getting it ready</Note>}
           {!problem && started && preparing && <Note>Subtitles in a moment</Note>}
+          {!problem && started && !preparing && offer && (
+            <PickedUp
+              at={props.from}
+              full={full}
+              onStartOver={() => {
+                setOffer(false);
+                restart({ at: 0 });
+              }}
+            />
+          )}
           {problem && (
             <Trouble
               problem={problem}
@@ -709,6 +755,28 @@ function Note({ children }: { children: React.ReactNode }) {
       className="absolute top-2.5 left-2.5 animate-pulse rounded-full bg-tag px-2.5 py-1 font-bold text-12 text-white"
     >
       {children}
+    </span>
+  );
+}
+
+/** Over the picture's corner, a moment after a video picks up where it stopped: from where, and
+ * the way back to its start. */
+function PickedUp(props: { at: number; full: boolean; onStartOver: () => void }) {
+  return (
+    <span
+      className={cn(
+        "absolute flex animate-fade-in items-center gap-2 rounded-full bg-tag py-1 pr-1 pl-3 font-bold text-12 text-white",
+        props.full ? "top-22 left-6" : "top-2.5 left-2.5",
+      )}
+    >
+      <span role="status">Picked up at {playTime(props.at)}</span>
+      <button
+        type="button"
+        onClick={props.onStartOver}
+        className="press cursor-pointer rounded-full bg-tint/14 px-2.5 py-0.5 text-white"
+      >
+        Start over
+      </button>
     </span>
   );
 }

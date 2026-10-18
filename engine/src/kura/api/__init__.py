@@ -41,6 +41,7 @@ from kura.api import (
     titles,
     tmdb,
     tools,
+    watched,
 )
 from kura.backups import restore_asked
 from kura.cache import Cache
@@ -208,6 +209,7 @@ def create_app(
         tmdb,
         titles,
         files,
+        watched,
         search,
         review,
         tidy,

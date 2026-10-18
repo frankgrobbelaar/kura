@@ -351,6 +351,16 @@ what converting it to the library's standard does, planned as Convert would. An 
 it, so the missing ones open too. TMDB's synopsis of an episode is kept on its row as the episode
 list is refreshed.
 
+What the owner has watched (`kura/watched.py`, the rules in `kura/core/watched.py`) is a row per
+video in `watched`: where it stopped, when it last played, and when it was seen to its last tenth
+or marked watched. The player says where it is every ten seconds while it plays and as it stops
+(`PUT /files/{id}/position`), once it has played for ten seconds; a video's menu marks it watched
+or not (`POST /files/watched`). Play picks a video up where it stopped, unless that was in its
+first 30 seconds or its last tenth. Home's "Continue watching" (`GET /continue`) takes each title's
+latest video that counts (stopped part way, or watched): stopped part way, it's picked up there;
+watched, the next one not watched yet is up next, in the order a title's page plays them. A
+title can be left out of it (`DELETE /continue/{id}`) till one of its videos plays again.
+
 The title bar's search (`kura/search.py`, `GET /search?q=`) finds the library's anime by any
 name AniList says they go by, their episodes by code or name (the ones the library lacks too),
 and its videos by their files' names. Every word typed must be there, however a name is written:

@@ -18,6 +18,7 @@ export function useFileActions() {
       explorer.run(() => showInFolder(path));
     },
     copy: (path: string) => {
+      explorer.clear();
       navigator.clipboard.writeText(path).then(
         () => setCopied(true),
         () => setCopied(false), // the window wasn't let at the clipboard: nothing to say

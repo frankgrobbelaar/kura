@@ -11,7 +11,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
-from kura import artwork, franchises, titles
+from kura import artwork, franchises, titles, watched
 from kura.api.common import ApiModel, Database, Paths, Web
 from kura.core.catalog import Episode, TitleKind
 from kura.core.franchise import Entry
@@ -78,6 +78,8 @@ class TitleFile(ApiModel):
     made: bool  # English subtitles Kura made are beside it
     # In the queue for English subtitles ("queued"), or having them made ("running").
     subtitles_job: Literal["queued", "running"] | None
+    watched: bool  # seen to its last tenth, or marked watched
+    resume: float | None  # where Play picks it up, in seconds; None for from the top
 
 
 class EpisodeState(ApiModel):
@@ -233,6 +235,7 @@ def one_title(title_id: int, conn: Database) -> TitleDetail:
         (title_id,),
     ).fetchall()
     subtitled = beside(Path(row["path"]) for row in videos)
+    seen = watched.of_title(conn, title_id)
     show = titles.show_of(conn, title_id)
     statuses = (
         titles.episode_statuses(conn, title_id, show, library_standard(conn), _today())
@@ -266,7 +269,7 @@ def one_title(title_id: int, conn: Database) -> TitleDetail:
         missing_episodes=[_episode(e) for e in (gaps.missing if gaps else ())],
         missing_specials=[_episode(e) for e in (gaps.specials_missing if gaps else ())],
         upcoming_episodes=[_episode(e) for e in (gaps.upcoming if gaps else ())],
-        videos=[_video(row, subtitled[Path(row["path"])]) for row in videos],
+        videos=[_video(row, subtitled[Path(row["path"])], seen) for row in videos],
         about=_about(conn, found),
     )
 
@@ -297,13 +300,17 @@ def _about(conn: Database, found: Title) -> TitleAbout:
     )
 
 
-def _video(row: sqlite3.Row, beside_it: list[str]) -> TitleFile:
-    """A title's video, with the languages of the subtitle files beside it (`beside_it`)."""
+def _video(row: sqlite3.Row, beside_it: list[str], seen: dict[int, watched.Watch]) -> TitleFile:
+    """A title's video, with the languages of the subtitle files beside it (`beside_it`), and how
+    far it has been watched (from `seen`, by its id)."""
     sound: list[str] = json.loads(row["sound"] or "[]")
     filled = heard_in(sound, row["heard_track"], row["heard"])
+    watch = seen.get(row["id"])
     return TitleFile.model_validate(
         {
             **dict(row),
+            "watched": watch.watched if watch else False,
+            "resume": watch.resume if watch else None,
             "sound": listed(filled),
             "subtitles": listed([*json.loads(row["subtitles"] or "[]"), *beside_it]),
             "made": is_made(Path(row["path"]), row["made"], row["made_size"], row["made_modified"]),

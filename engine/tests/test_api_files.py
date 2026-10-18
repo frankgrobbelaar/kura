@@ -1,6 +1,7 @@
 """A video in full through the API: what it holds, where it is, the episode it is, and what
 converting it does; and an episode's own details, the library's or not."""
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -56,7 +57,9 @@ def test_a_video_says_what_it_holds_and_what_converting_it_does(client: TestClie
         "bitDepth": 10,
         "frameRate": pytest.approx(23.976, abs=0.001),
     }
-    assert found["sound"] == [{"language": "jpn", "codec": "aac", "channels": 2, "lossless": False}]
+    assert found["sound"] == [
+        {"language": "jpn", "codec": "aac", "channels": 2, "lossless": False, "heard": False}
+    ]
     assert [(s["language"], s["beside"], s["made"]) for s in found["subtitles"]] == [
         ("de", True, False),
         ("en", True, True),
@@ -66,6 +69,21 @@ def test_a_video_says_what_it_holds_and_what_converting_it_does(client: TestClie
     converting = found["converting"]
     assert (converting["state"], converting["method"]) == ("to convert", "best")
     assert converting["reasons"][0].startswith("SD 540p")
+
+
+def test_a_track_that_doesnt_say_its_language_has_the_one_kura_heard(
+    client: TestClient, conn: sqlite3.Connection, shelf: Path
+):
+    probe = json.loads(conn.execute("SELECT probe FROM files WHERE id = 1").fetchone()[0])
+    for stream in probe["streams"]:
+        if stream.get("codec_type") == "audio":
+            stream.get("tags", {}).pop("language", None)
+    with conn:
+        conn.execute("UPDATE files SET probe = ? WHERE id = 1", (json.dumps(probe),))
+
+    [sound] = client.get("/files/1").json()["sound"]
+
+    assert (sound["language"], sound["heard"]) == ("ja", True)
 
 
 def test_a_video_kura_doesnt_have_is_404(client: TestClient, shelf: Path):

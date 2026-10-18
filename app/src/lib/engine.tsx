@@ -669,6 +669,10 @@ export interface TitleFile {
   made: boolean;
   /** In the queue for English subtitles, or having them made. */
   subtitlesJob: "queued" | "running" | null;
+  /** Seen to its last tenth, or marked watched. */
+  watched: boolean;
+  /** Where Play picks it up, in seconds; null for from the top. */
+  resume: number | null;
 }
 
 /** How an episode stands; on screen each has its shape (see the status-* utilities). */
@@ -753,7 +757,14 @@ export interface FileDetails {
     bitDepth: number;
     frameRate: number | null;
   } | null;
-  sound: { language: string | null; codec: string; channels: number; lossless: boolean }[];
+  sound: {
+    language: string | null;
+    codec: string;
+    channels: number;
+    lossless: boolean;
+    /** Its language is the one Kura heard, as the track doesn't say. */
+    heard: boolean;
+  }[];
   subtitles: {
     language: string | null;
     /** Null for a file beside the video. */
@@ -804,6 +815,65 @@ export const useEpisodeDetails = (
     undefined,
     enabled,
   );
+
+/** A video "Continue watching" plays, or one that plays after it. */
+export interface NextVideo {
+  fileId: number;
+  season: number | null;
+  episode: number | null;
+  episodeEnd: number | null;
+  /** Its episode's, as TMDB names it. */
+  name: string | null;
+  path: string;
+  /** In seconds. */
+  duration: number | null;
+  /** Where Play picks it up, in seconds; null for from the top. */
+  resume: number | null;
+}
+
+/** A title to go on with, on Home: the video stopped part way, or the one after the last seen. */
+export interface Continuing {
+  titleId: number;
+  title: string;
+  kind: TitleKind;
+  hasPoster: boolean;
+  playedAt: string;
+  /** The one after the last seen, rather than one stopped part way. */
+  upNext: boolean;
+  video: NextVideo;
+  /** What plays after it, in order. */
+  following: NextVideo[];
+}
+
+/** Home's "Continue watching": the latest played first. */
+export const useContinue = () => useEngineQuery<Continuing[]>("/continue");
+/** Marks videos watched or not: `{ path: "/files/watched", body: { files, watched } }`. */
+export const useMarkWatched = () => useEngineAction<void>(["/titles", "/continue"]);
+/** Leaves a title out of "Continue watching" till it plays again: `{ path: "/continue/7" }`. */
+export const useStopContinuing = () => useEngineAction<void>(["/continue"], "DELETE");
+
+/**
+ * Says where a video is to the engine (`PUT /files/{id}/position`), as the player plays it:
+ * `stopped` once it stops, so its title's page and Home's "Continue watching" catch up.
+ */
+export function usePositionNote() {
+  const engine = useEngine();
+  const refresh = useRefresh();
+  return useCallback(
+    (fileId: number, position: number, duration: number | null, stopped: boolean) => {
+      if (engine.state !== "ready") return;
+      void callEngine<void>(engine, `/files/${fileId}/position`, {
+        method: "PUT",
+        body: JSON.stringify({ position, duration: duration || null }),
+        headers: { "Content-Type": "application/json" },
+      })
+        .then(() => (stopped ? refresh(["/titles", "/continue"]) : undefined))
+        // A position that didn't reach the engine is a small thing: the next one says it again.
+        .catch(() => {});
+    },
+    [engine, refresh],
+  );
+}
 
 /** A title's About panel alone: a franchise's page shows its lead's. */
 export const useTitleAbout = (id: number, enabled = true) =>

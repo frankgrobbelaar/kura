@@ -19,9 +19,16 @@ shows these notes when it offers the update.
   as it gives the story away), its picture, sound and subtitle tracks, length, size, where it is
   and what converting it would do. Open them from the video's name or its menu; an episode you
   don't have opens from the episode map or the missing list, a special from its list.
+- Kura remembers where you stopped: Play picks a video up there (with "Start over" for a moment),
+  a title's videos tick off the ones you've watched and say what's left of one you stopped, and
+  each video's menu marks it watched or not.
+- "Continue watching" on Home: each title you're part way through, the latest first, with the
+  video you stopped or the next one up, played from where you left off.
 
 ### Changed
 - Long names on the shelf's cards wrap onto a second line rather than trail off.
+- Deleting a video, on a title's page or "Which anime is this?", is in its ⋮ menu now, as
+  "Delete…", beside what else you can do with it.
 
 ## 0.19.0 - 2026-10-15
 

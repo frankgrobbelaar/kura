@@ -24,6 +24,7 @@ import {
 } from "@/lib/engine";
 import { dayAndTime, isEnglish, scanChanges } from "@/lib/format";
 import { Attention } from "./attention";
+import { ContinueWatching } from "./continue-watching";
 import { Recovered } from "./recovered";
 import { Shelf } from "./shelf";
 
@@ -82,6 +83,7 @@ export function HomePage() {
           <TilesSkeleton count={4} />
         </Loading>
       )}
+      {working && library.data && !empty && <ContinueWatching />}
       {working && library.data && !empty && <Pictures library={library.data} />}
       {working && !empty && videos.length > 0 && <Languages videos={videos} />}
       {working && scan.data && library.data && !empty && (

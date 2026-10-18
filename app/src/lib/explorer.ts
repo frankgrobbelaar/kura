@@ -21,5 +21,6 @@ export function useExplorer() {
     setProblem(null);
     action().catch((error: unknown) => setProblem(String(error)));
   }, []);
-  return { problem, run };
+  const clear = useCallback(() => setProblem(null), []);
+  return { problem, run, clear };
 }

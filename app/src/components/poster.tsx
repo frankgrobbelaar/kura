@@ -5,7 +5,13 @@ import { cn } from "@/lib/utils";
  * A title's poster, or in its place the boards' placeholder: the featured blue with its orange
  * orb, and the title's first letters.
  */
-export function Poster({ title, className }: { title: TitleSummary; className?: string }) {
+export function Poster(props: {
+  title: Pick<TitleSummary, "id" | "name" | "hasPoster">;
+  /** A thumbnail beside a line of text: its letters to fit. */
+  small?: boolean;
+  className?: string;
+}) {
+  const { title, className } = props;
   const address = usePoster(title.id, title.hasPoster);
   return (
     <div
@@ -17,7 +23,14 @@ export function Poster({ title, className }: { title: TitleSummary; className?: 
       ) : (
         <>
           <span className="-right-[22%] -top-[12%] absolute aspect-square w-[76%] rounded-full bg-featured-orb" />
-          <span className="absolute right-2.5 bottom-3 left-3 font-extrabold text-36 text-white leading-none tracking-[-0.03em]">
+          <span
+            className={cn(
+              "absolute font-extrabold text-white leading-none tracking-[-0.03em]",
+              props.small
+                ? "right-1 bottom-1.5 left-1.5 text-15"
+                : "right-2.5 bottom-3 left-3 text-36",
+            )}
+          >
             {initials(title.name)}
           </span>
         </>

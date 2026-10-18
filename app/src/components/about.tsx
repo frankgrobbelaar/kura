@@ -14,7 +14,7 @@ export function Synopsis({ text, lines = 4 }: { text: string; lines?: 4 | 6 }) {
     <div className="flex flex-col items-start gap-1.5">
       <div
         className={cn(
-          "flex flex-col gap-2.5 text-14 text-fg-soft leading-relaxed",
+          "space-y-2.5 text-14 text-fg-soft leading-relaxed",
           long && !all && (lines === 4 ? "line-clamp-4" : "line-clamp-6"),
         )}
       >

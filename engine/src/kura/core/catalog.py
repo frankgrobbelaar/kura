@@ -257,6 +257,9 @@ def show(details: Json) -> Show | None:
     status = fields.text(details, "status")
     airing = bool(details.get("in_production")) or status in _AIRING
     lengths = fields.numbers(details, "episode_run_time")
+    # Its latest episode so far, of its seasons: TMDB's own date can be a special's, years on.
+    latest = fields.day(fields.text(details, "last_air_date"))
+    aired = [e.aired for e in episodes if e.season > 0 and e.aired and latest and e.aired <= latest]
     return Show(
         id=number,
         title=title,
@@ -270,7 +273,7 @@ def show(details: Json) -> Show | None:
         genres=_genres(details),
         studio=_company(details),
         status=_TMDB_STATUS.get(status or "") or ("airing" if airing else None),
-        last_aired=fields.day(fields.text(details, "last_air_date")),
+        last_aired=max(aired, default=latest),
         minutes=lengths[0] if lengths and lengths[0] > 0 else None,
     )
 
@@ -298,7 +301,7 @@ def film(details: Json) -> Film | None:
         overview=fields.text(details, "overview") or None,
         genres=_genres(details),
         studio=_company(details),
-        status=_TMDB_STATUS.get(fields.text(details, "status") or ""),
+        status=_FILM_STATUS.get(fields.text(details, "status") or ""),
     )
 
 
@@ -326,6 +329,15 @@ _TMDB_STATUS: dict[str, Status] = {
     "Post Production": "coming",
     "Rumored": "coming",
     "Ended": "finished",
+    "Released": "finished",
+    "Canceled": "cancelled",
+}
+# A film being made isn't airing: it's still to come.
+_FILM_STATUS: dict[str, Status] = {
+    "Rumored": "coming",
+    "Planned": "coming",
+    "In Production": "coming",
+    "Post Production": "coming",
     "Released": "finished",
     "Canceled": "cancelled",
 }

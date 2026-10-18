@@ -99,6 +99,8 @@ const DBZ: TitleDetail = {
       duration: 1440,
       made: false,
       subtitlesJob: null,
+      watched: false,
+      resume: null,
       sound: ["jpn"],
       subtitles: ["eng"],
       heard: null,
@@ -123,7 +125,7 @@ const DETAILS: FileDetails = {
   aired: "1989-04-26",
   overview: "A visitor lands with news from far away.",
   picture: { codec: "h264", width: 640, height: 480, bitDepth: 8, frameRate: 23.976 },
-  sound: [{ language: "jpn", codec: "aac", channels: 2, lossless: false }],
+  sound: [{ language: "jpn", codec: "aac", channels: 2, lossless: false, heard: false }],
   subtitles: [
     { language: "eng", codec: "ass", text: true, forced: false, beside: false, made: false },
     { language: "eng", codec: null, text: true, forced: false, beside: true, made: true },
@@ -155,6 +157,8 @@ function video(id: number, season: number | null, episode: number | null, name: 
     heard: null as string | null,
     made: false,
     subtitlesJob: null as "queued" | "running" | null,
+    watched: false,
+    resume: null as number | null,
   };
 }
 
@@ -383,7 +387,7 @@ describe("TitlePage", () => {
     const map = screen.getByRole("region", { name: "Episode map" });
     expect(
       within(map)
-        .getAllByRole("img")
+        .getAllByRole("list")
         .map((season) => season.getAttribute("aria-label")),
     ).toEqual(["Season 1: 39 to convert", "Season 4: 29 ready, 1 broken, 2 missing"]);
     expect(within(map).getByText("Season 4")).toBeInTheDocument();
@@ -566,7 +570,7 @@ describe("TitlePage", () => {
     expect(rows[0]).toHaveTextContent("S01E01Episode 1won't play");
     expect(rows[1]).toHaveTextContent("S01E02Episode 2");
     expect(rows[1]).toHaveTextContent("1080p · HEVC · 24 min · 412 MB");
-    expect(within(first).getByText("Episode 2")).toHaveAttribute(
+    expect(within(first).getByRole("button", { name: "Episode 2" })).toHaveAttribute(
       "title",
       video(2, 1, 2, "S01E02").path,
     );
@@ -870,6 +874,46 @@ describe("TitlePage", () => {
     await waitFor(() => expect(sent(fetch, "POST", "/player")).toHaveLength(1));
   });
 
+  it("says which videos were watched and what's left of one, and picks it up there", async () => {
+    const [first] = DBZ.videos as [TitleDetail["videos"][number]];
+    const watched = { ...first, watched: true };
+    const stopped = { ...video(2, 1, 2, "S01E02"), resume: 553 };
+    const fetch = renderTitle(
+      { ...DBZ, videos: [watched, stopped] },
+      undefined,
+      null,
+      { "POST /player": OPENED },
+      true,
+    );
+
+    const videos = await screen.findByRole("region", { name: "Videos" });
+    expect(videos).toHaveTextContent("2 files · 1 watched");
+    const rows = within(videos).getAllByRole("listitem");
+    expect(
+      within(rows[0] as HTMLElement).getByRole("img", { name: "Watched" }),
+    ).toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent("1080p · HEVC · 15 min left · 412 MB");
+    within(videos).getByRole("button", { name: "Play S01E02" }).click();
+
+    const player = await screen.findByRole("region", { name: "Player" });
+    expect(player).toHaveTextContent("Dragon Ball Z · S01E02");
+    await waitFor(() => expect(sent(fetch, "POST", "/player")).toHaveLength(1));
+    const src = player.querySelector("video")?.getAttribute("src");
+    await waitFor(() =>
+      expect(new URL(src ?? "http://x/?at=0").searchParams.get("at")).toBe("553.000"),
+    );
+  });
+
+  it("marks a video watched, or not, from its menu", async () => {
+    const fetch = renderTitle(DBZ, undefined, null, { "POST /files/watched": null });
+
+    await fromMenu("More for S01E01", "Mark as watched");
+
+    await waitFor(() => expect(sent(fetch, "POST", "/files/watched")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "POST", "/files/watched") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({ files: [1], watched: true });
+  });
+
   it("tells of a video in full, keeping what happens in it hidden till asked", async () => {
     renderTitle(DBZ, undefined, null, { "/files/1": DETAILS });
 
@@ -919,6 +963,72 @@ describe("TitlePage", () => {
     expect(player).toHaveTextContent("Dragon Ball Z · S01E01");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     await waitFor(() => expect(sent(fetch, "POST", "/player")).toHaveLength(1));
+  });
+
+  it("goes along the episode map by the arrow keys, one stop for the keyboard", async () => {
+    renderTitle(DBZ);
+
+    const map = await screen.findByRole("region", { name: "Episode map" });
+    const squares = within(map).getAllByRole("button");
+    expect(squares.filter((square) => square.tabIndex === 0)).toHaveLength(1);
+    const first = squares[0] as HTMLElement;
+    first.focus();
+    fireEvent.keyDown(first, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(squares[1]);
+    fireEvent.keyDown(squares[1] as HTMLElement, { key: "End" });
+    expect(document.activeElement).toHaveAccessibleName("S04E32 · episode 71 · Episode 32 · ready");
+    expect(squares.filter((square) => square.tabIndex === 0)).toEqual([squares.at(-1)]);
+  });
+
+  it("says an episode still to come isn't out yet", async () => {
+    renderTitle(
+      {
+        ...DBZ,
+        episodes: [
+          ...DBZ.episodes,
+          {
+            season: 4,
+            number: 33,
+            name: "Next Week",
+            aired: "2099-01-01",
+            state: "upcoming",
+            fileId: null,
+          },
+        ],
+      },
+      undefined,
+      null,
+      {
+        "/titles/1/episodes/4/33": {
+          season: 4,
+          number: 33,
+          name: "Next Week",
+          aired: "2099-01-01",
+          overview: null,
+          minutes: 24,
+          fileId: null,
+        },
+      },
+    );
+
+    (await screen.findByTitle("S04E33 · episode 72 · Next Week · still to air")).click();
+
+    const sheet = await screen.findByRole("dialog", { name: "S04E33 · Next Week" });
+    expect(await within(sheet).findByText("Not out yet")).toBeInTheDocument();
+    expect(sheet).toHaveTextContent("Dragon Ball Z · airs 1 Jan 2099");
+  });
+
+  it("gives the focus back to what opened its details once they close", async () => {
+    renderTitle(DBZ, undefined, null, { "/files/1": DETAILS });
+
+    const name = await screen.findByRole("button", { name: "Episode 1" });
+    name.focus();
+    name.click();
+    const sheet = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    fireEvent.keyDown(sheet, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(document.activeElement).toBe(name));
   });
 
   it("tells of an episode the library lacks, from the map and from the lists", async () => {

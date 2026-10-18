@@ -335,7 +335,8 @@ def test_a_title_says_what_its_about_panel_shows(
         "finished",
         24,
     )
-    assert (about["started"], about["ended"]) == ("1989-04-26", "1996-01-31")
+    # Its seasons' latest episode: the made-up list airs weekly, ending before TMDB's own date.
+    assert (about["started"], about["ended"]) == ("1989-04-26", "1994-11-16")
     assert (about["anilistId"], about["tmdbType"], about["tmdbId"]) == (813, "tv", 12971)
     assert client.get(f"/titles/{dbz_id}/about").json() == about
     assert client.get("/titles/999/about").status_code == 404

@@ -351,4 +351,15 @@ MIGRATIONS: Final[tuple[str, ...]] = (
     UPDATE titles SET checked_at = '2000-01-01T00:00:00+00:00' WHERE checked_at IS NOT NULL;
     UPDATE anilist_entries SET checked_at = '2000-01-01T00:00:00+00:00';
     """,
+    # 24. What the owner has watched, and where each video stopped (kura/watched.py): Play picks
+    #     a video up there, and Home's "Continue watching" goes on from the latest played.
+    """
+    CREATE TABLE watched (
+        file_id    INTEGER PRIMARY KEY REFERENCES files (id) ON DELETE CASCADE,
+        position   REAL NOT NULL,  -- seconds in, where it last stopped
+        duration   REAL,           -- how long it plays, as the player had it
+        played_at  TEXT,           -- when it last played (UTC); None: out of Continue watching
+        watched_at TEXT            -- seen to its last tenth, or marked watched
+    ) STRICT;
+    """,
 )

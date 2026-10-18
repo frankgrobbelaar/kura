@@ -1,5 +1,12 @@
-import { AudioLines, Captions, FileText, Play } from "lucide-react";
-import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
+import { AudioLines, Captions, Check, FileText, Play } from "lucide-react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Breadcrumb, LIBRARY } from "@/components/breadcrumb";
 import { type Asking, ConfirmDelete, Deleted, DeleteIcon, useDeleting } from "@/components/delete";
@@ -22,6 +29,7 @@ import {
   type TitleDetail,
   type TitleFile,
   useFranchiseMissing,
+  useMarkWatched,
   useQueueGlance,
   useReport,
   useTitle,
@@ -55,6 +63,7 @@ export function TitlePage() {
   // A video or an episode opened, to tell of it in full.
   const [opened, setOpened] = useState<Opened | null>(null);
   const { play } = usePlayer();
+  const mark = useMarkWatched();
   const videosAt = useRef<HTMLElement>(null);
   const toVideos = () => {
     const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -190,6 +199,13 @@ export function TitlePage() {
         onQuery={setQuery}
         onPlay={playVideo}
         onDetails={(video) => setOpened({ video: video.id })}
+        onWatched={(videos, watched) =>
+          mark.mutate({
+            path: "/files/watched",
+            body: { files: videos.map((video) => video.id), watched },
+          })
+        }
+        problem={mark.error?.message ?? null}
         at={videosAt}
         onAsk={ask}
         confirm={confirm}
@@ -409,35 +425,58 @@ function Seasons(props: {
 function EpisodeMap(props: { episodes: EpisodeState[]; onOpen: (episode: EpisodeState) => void }) {
   const { episodes } = props;
   const counted = new Map(episodes.map((episode, index) => [key(episode), index + 1]));
+  // One stop for the keyboard: the arrow keys go from square to square, Home and End to the
+  // first and the last.
+  const [current, setCurrent] = useState(0);
+  const squares = useRef<HTMLDivElement>(null);
+  const move = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const step = STEPS[event.key];
+    const to =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? episodes.length - 1
+          : step !== undefined
+            ? current + step
+            : null;
+    if (to === null) return;
+    event.preventDefault();
+    const next = Math.min(Math.max(to, 0), episodes.length - 1);
+    setCurrent(next);
+    squares.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+  };
   return (
     <Panel id="map-title" title="Episode map" note="Click a square for the episode">
-      <div className="flex flex-col gap-2.5">
+      <div ref={squares} className="flex flex-col gap-2.5">
         {seasonsOf(episodes).map(([season, mine]) => (
           <div key={season} className="grid grid-cols-[5rem_1fr] items-start gap-3">
             <span className="font-bold text-12 text-fg-muted leading-3">Season {season}</span>
-            <div
-              role="img"
-              aria-label={`Season ${season}: ${statesIn(mine)}`}
-              className="flex flex-wrap gap-1"
-            >
-              {mine.map((episode) => (
-                // The map is a picture to a screen reader: the lists below lead to each episode.
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  key={key(episode)}
-                  onClick={() => props.onOpen(episode)}
-                  className="press flex cursor-pointer"
-                  title={`S${pad(episode.season)}E${pad(episode.number)} · episode ${counted.get(
-                    key(episode),
-                  )}${episode.name ? ` · ${episode.name}` : ""} · ${statusWord(
-                    episode.state,
-                  ).toLowerCase()}`}
-                >
-                  <StatusShape state={episode.state} className="size-3" />
-                </button>
-              ))}
-            </div>
+            <ul aria-label={`Season ${season}: ${statesIn(mine)}`} className="flex flex-wrap gap-1">
+              {mine.map((episode) => {
+                const index = (counted.get(key(episode)) ?? 1) - 1;
+                const words = `S${pad(episode.season)}E${pad(episode.number)} · episode ${
+                  index + 1
+                }${episode.name ? ` · ${episode.name}` : ""} · ${statusWord(
+                  episode.state,
+                ).toLowerCase()}`;
+                return (
+                  <li key={key(episode)} className="flex">
+                    <button
+                      type="button"
+                      tabIndex={index === current ? 0 : -1}
+                      aria-label={words}
+                      title={words}
+                      onFocus={() => setCurrent(index)}
+                      onKeyDown={move}
+                      onClick={() => props.onOpen(episode)}
+                      className="press flex cursor-pointer rounded-[3px] focus-visible:outline-2 focus-visible:outline-accent-fg focus-visible:outline-offset-1"
+                    >
+                      <StatusShape state={episode.state} className="size-3" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         ))}
       </div>
@@ -445,6 +484,9 @@ function EpisodeMap(props: { episodes: EpisodeState[]; onOpen: (episode: Episode
     </Panel>
   );
 }
+
+/** How far each arrow key moves along the episode map. */
+const STEPS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
 /** The episodes by season, in order: [season, its episodes]. */
 function seasonsOf(episodes: EpisodeState[]): [number, EpisodeState[]][] {
@@ -657,6 +699,9 @@ function Videos(props: {
   onQuery: (query: string) => void;
   onPlay: (video: TitleFile) => void;
   onDetails: (video: TitleFile) => void;
+  onWatched: (videos: TitleFile[], watched: boolean) => void;
+  /** Why marking videos watched didn't work. */
+  problem: string | null;
   at: RefObject<HTMLElement | null>;
   onAsk: (asking: Asking) => void;
   confirm: (where: string) => ReactNode;
@@ -681,7 +726,12 @@ function Videos(props: {
   const heading =
     title.kind === "movie" ? (title.videos.length === 1 ? "Its file" : "Its files") : "Videos";
   const without = title.videos.filter((video) => !video.problem && !english(video)).length;
-  const note = [files(title.videos.length), without > 0 && `${without} without English`]
+  const watched = title.videos.filter((video) => video.watched).length;
+  const note = [
+    files(title.videos.length),
+    watched > 0 && `${watched} watched`,
+    without > 0 && `${without} without English`,
+  ]
     .filter(Boolean)
     .join(" · ");
   const seasonal = !query && (season(shown) || shown.key === "0");
@@ -724,6 +774,11 @@ function Videos(props: {
           </Link>
         </div>
       </div>
+      {props.problem && (
+        <p role="alert" className="text-13 text-broken-fg">
+          {props.problem}
+        </p>
+      )}
       {found.length === 0 ? (
         <NoMatches>
           No video of {title.name} goes by “{query.trim()}”.
@@ -743,6 +798,7 @@ function Videos(props: {
               making={props.making?.fileId === video.id ? props.making.share : null}
               onPlay={() => props.onPlay(video)}
               onDetails={() => props.onDetails(video)}
+              onWatched={(watched) => props.onWatched([video], watched)}
               onAsk={props.onAsk}
               confirm={props.confirm(`video-${video.id}`)}
             />
@@ -763,6 +819,7 @@ function VideoRow(props: {
   making: number | null;
   onPlay: () => void;
   onDetails: () => void;
+  onWatched: (watched: boolean) => void;
   onAsk: (asking: Asking) => void;
   confirm: ReactNode;
 }) {
@@ -788,15 +845,24 @@ function VideoRow(props: {
         onClick={props.onDetails}
         title={video.path}
         className={cn(
-          "cursor-pointer truncate text-left underline-offset-3 hover:underline",
+          "flex min-w-0 cursor-pointer items-center gap-1.5 text-left underline-offset-3 hover:underline",
           playing && "font-bold text-accent-fg",
         )}
       >
-        {shownName(props.title, video)}
+        {video.watched && (
+          <Check
+            size={13}
+            strokeWidth={3}
+            role="img"
+            aria-label="Watched"
+            className="shrink-0 text-accent-fg"
+          />
+        )}
+        <span className="truncate">{shownName(props.title, video)}</span>
       </button>
       <Spoken video={video} making={props.making} />
       <span className={cn("text-12", playing ? "font-bold text-accent-fg" : "text-fg-muted")}>
-        {playing ? "Playing" : video.problem ? "won't play" : facts(video)}
+        {playing ? "Playing" : video.problem ? "won't play" : <Facts video={video} />}
       </span>
       {/* The same button while it plays, so a keyboard keeps its place. */}
       {video.problem ? (
@@ -822,6 +888,9 @@ function VideoRow(props: {
       )}
       <RowMenu label={`More for ${name}`}>
         <MenuItem onSelect={props.onDetails}>Details</MenuItem>
+        <MenuItem onSelect={() => props.onWatched(!video.watched)}>
+          {video.watched ? "Mark as not watched" : "Mark as watched"}
+        </MenuItem>
         <FileMenuItems path={video.path} actions={files} />
         <MenuSeparator />
         <MenuItem
@@ -1014,15 +1083,28 @@ function foundBy(title: TitleDetail, video: TitleFile): string[] {
 }
 
 /** "1080p · HEVC · 24 min · 412 MB". */
-function facts(video: TitleFile): string {
-  return [
-    video.height ? `${video.height}p` : null,
-    video.codec ? codecName(video.codec) : null,
-    video.duration ? clockLength(video.duration / 60) : null,
-    size(video.size),
-  ]
+/** "480p · H.264 · 24 min · 233 MB", how much is left in amber for a video stopped part way. */
+function Facts({ video }: { video: TitleFile }) {
+  const left =
+    video.resume !== null && video.duration
+      ? `${Math.max(1, Math.round((video.duration - video.resume) / 60))} min left`
+      : null;
+  const before = [video.height ? `${video.height}p` : null, video.codec && codecName(video.codec)]
     .filter(Boolean)
     .join(" · ");
+  const length = video.duration ? clockLength(video.duration / 60) : null;
+  return (
+    <>
+      {before && `${before} · `}
+      {left ? (
+        <span className="font-bold text-accent-fg">{left}</span>
+      ) : (
+        length && <span>{length}</span>
+      )}
+      {(left || length) && " · "}
+      {size(video.size)}
+    </>
+  );
 }
 
 /** A video as the player names it: "Dragon Ball Z · S01E05" and its episode's title, or the
@@ -1038,6 +1120,7 @@ function playItem(title: TitleDetail, video: TitleFile): PlayItem {
     label: numbered ? `${title.name} · ${videoName(video)}` : title.name,
     name: numbered ? (episode?.name ?? null) : name,
     path: video.path,
+    resume: video.resume,
   };
 }
 

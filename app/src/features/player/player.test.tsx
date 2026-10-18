@@ -73,7 +73,11 @@ const READY_STATE: PlayerState = { ready: [0, 1], preparing: [], failed: [], sto
 
 let paused = true;
 
-function renderPlayer(answers: Record<string, unknown>, items = EPISODES, from = 0) {
+function renderPlayer(
+  answers: Record<string, unknown>,
+  items = EPISODES,
+  from: number | undefined = undefined,
+) {
   const fetch = fakeEngine({
     "POST /player": OPENED,
     "/player/T1": READY_STATE,
@@ -119,6 +123,12 @@ async function playing(): Promise<HTMLVideoElement> {
   paused = false;
   fireEvent(video, new Event("playing"));
   return video;
+}
+
+/** The stream has played to `seconds` in. */
+function playedTo(video: HTMLVideoElement, seconds: number) {
+  Object.defineProperty(video, "currentTime", { value: seconds, configurable: true });
+  fireEvent(video, new Event("timeupdate"));
 }
 
 function asked_(video: HTMLVideoElement) {
@@ -387,6 +397,68 @@ describe("PlayerLayer", () => {
     within(player).getByRole("button", { name: "Open its folder" }).click();
     await waitFor(() =>
       expect(shell.invoke).toHaveBeenCalledWith("show_in_folder", { path: EPISODES[0]?.path }),
+    );
+  });
+
+  it("picks a video up where it stopped, and starts over when asked", async () => {
+    const [first, second] = EPISODES as [PlayItem, PlayItem];
+    renderPlayer({}, [{ ...first, resume: 600 }, second]);
+    const player = await started();
+    const video = await playing();
+
+    expect(asked(video.getAttribute("src")).at).toBe("600.000");
+    expect(await within(player).findByText("Picked up at 10:00")).toBeInTheDocument();
+    within(player).getByRole("button", { name: "Start over" }).click();
+
+    await waitFor(() => expect(asked(video.getAttribute("src")).at).toBe("0.000"));
+    expect(within(player).queryByText("Picked up at 10:00")).not.toBeInTheDocument();
+  });
+
+  it("says where the video is as it plays, and as it stops", async () => {
+    const fetch = renderPlayer({ "PUT /files/5/position": null });
+    await started();
+    const video = await playing();
+    const told = () =>
+      sent(fetch, "PUT", "/files/5/position").map(([, init]) =>
+        JSON.parse(String((init as RequestInit).body)),
+      );
+
+    for (let second = 1; second <= 9; second += 1) playedTo(video, second);
+    expect(told()).toEqual([]); // a look, so far
+    for (let second = 10; second <= 12; second += 1) playedTo(video, second);
+    await waitFor(() => expect(told()).toEqual([{ position: 10, duration: 1453 }]));
+
+    screen.getByRole("button", { name: "Close the player" }).click();
+    await waitFor(() => expect(told()).toHaveLength(2));
+    expect(told()[1]).toEqual({ position: 12, duration: 1453 });
+  });
+
+  it("keeps nothing of a look of a few seconds", async () => {
+    const fetch = renderPlayer({ "PUT /files/5/position": null });
+    await started();
+    const video = await playing();
+    for (let second = 1; second <= 4; second += 1) playedTo(video, second);
+
+    screen.getByRole("button", { name: "Close the player" }).click();
+
+    await waitFor(() => expect(sent(fetch, "DELETE", "/player/T1")).toHaveLength(1));
+    expect(sent(fetch, "PUT", "/files/5/position")).toHaveLength(0);
+  });
+
+  it("says a video was seen to its end", async () => {
+    const fetch = renderPlayer({ "PUT /files/5/position": null });
+    await started();
+    const video = await playing();
+    for (let second = 1; second <= 12; second += 1) playedTo(video, 1440 + second);
+
+    fireEvent(video, new Event("ended"));
+
+    await waitFor(() =>
+      expect(
+        sent(fetch, "PUT", "/files/5/position").map(([, init]) =>
+          JSON.parse(String((init as RequestInit).body)),
+        ),
+      ).toContainEqual({ position: 1453, duration: 1453 }),
     );
   });
 

@@ -7,13 +7,14 @@ import { LibrarySearch } from "./library-search";
 /**
  * Kura draws its own title bar (the window has no Windows frame). Drag it to
  * move the window; double-click it to maximise. In the middle, with `search`,
- * the library's search.
+ * the library's search. It takes the pointer even while a side sheet holds the
+ * rest of the window, which a press here closes.
  */
 export function TitleBar({ title = "Kura", search = false }: { title?: string; search?: boolean }) {
   return (
     <header
       data-tauri-drag-region
-      className="flex min-h-13 shrink-0 items-center gap-3 pl-5 select-none"
+      className="pointer-events-auto flex min-h-13 shrink-0 items-center gap-3 pl-5 select-none"
     >
       <div data-tauri-drag-region className="flex min-w-0 flex-[1_1_160px] items-center gap-2.5">
         <span className="pointer-events-none flex items-center gap-2.5">

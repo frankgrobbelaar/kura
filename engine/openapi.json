@@ -1052,6 +1052,157 @@
         }
       }
     },
+    "/files/{file_id}/position": {
+      "put": {
+        "summary": "Note Position",
+        "description": "Where a video is: the player says so as it plays, and as it stops.",
+        "operationId": "note_position_files__file_id__position_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Position"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/watched": {
+      "post": {
+        "summary": "Mark Watched",
+        "description": "Videos marked watched, or not watched: either way each starts from the top next time.",
+        "operationId": "mark_watched_files_watched_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Marked"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/continue": {
+      "get": {
+        "summary": "Continue Watching",
+        "description": "The titles to go on with, the latest played first: Home's \"Continue watching\".",
+        "operationId": "continue_watching_continue_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Continuing"
+                  },
+                  "type": "array",
+                  "title": "Response Continue Watching Continue Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/continue/{title_id}": {
+      "delete": {
+        "summary": "Stop Continuing",
+        "description": "A title out of \"Continue watching\" till one of its videos plays again.",
+        "operationId": "stop_continuing_continue__title_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "title_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Title Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/search": {
       "get": {
         "summary": "Find",
@@ -3664,6 +3815,56 @@
         "title": "Compared",
         "description": "A name another file has: that file, when Kura knows it, and the one coming, to compare."
       },
+      "Continuing": {
+        "properties": {
+          "titleId": {
+            "type": "integer",
+            "title": "Titleid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TitleKind"
+          },
+          "hasPoster": {
+            "type": "boolean",
+            "title": "Hasposter"
+          },
+          "playedAt": {
+            "type": "string",
+            "title": "Playedat"
+          },
+          "upNext": {
+            "type": "boolean",
+            "title": "Upnext"
+          },
+          "video": {
+            "$ref": "#/components/schemas/NextVideo"
+          },
+          "following": {
+            "items": {
+              "$ref": "#/components/schemas/NextVideo"
+            },
+            "type": "array",
+            "title": "Following"
+          }
+        },
+        "type": "object",
+        "required": [
+          "titleId",
+          "title",
+          "kind",
+          "hasPoster",
+          "playedAt",
+          "upNext",
+          "video",
+          "following"
+        ],
+        "title": "Continuing",
+        "description": "A title to go on with: the video stopped part way, or the one after the last seen."
+      },
       "Conversion": {
         "properties": {
           "jobId": {
@@ -5694,6 +5895,28 @@
         ],
         "title": "LibraryFolder"
       },
+      "Marked": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Files"
+          },
+          "watched": {
+            "type": "boolean",
+            "title": "Watched"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "watched"
+        ],
+        "title": "Marked"
+      },
       "Measured": {
         "properties": {
           "at": {
@@ -5924,6 +6147,96 @@
           "key"
         ],
         "title": "NewKey"
+      },
+      "NextVideo": {
+        "properties": {
+          "fileId": {
+            "type": "integer",
+            "title": "Fileid"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "episodeEnd": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episodeend"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "resume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fileId",
+          "season",
+          "episode",
+          "episodeEnd",
+          "name",
+          "path",
+          "duration",
+          "resume"
+        ],
+        "title": "NextVideo"
       },
       "OpenVideo": {
         "properties": {
@@ -6332,6 +6645,32 @@
           "stopped"
         ],
         "title": "PlayerState"
+      },
+      "Position": {
+        "properties": {
+          "position": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Position"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "position"
+        ],
+        "title": "Position"
       },
       "ProposedChange": {
         "properties": {
@@ -7207,6 +7546,10 @@
           "lossless": {
             "type": "boolean",
             "title": "Lossless"
+          },
+          "heard": {
+            "type": "boolean",
+            "title": "Heard"
           }
         },
         "type": "object",
@@ -7214,7 +7557,8 @@
           "language",
           "codec",
           "channels",
-          "lossless"
+          "lossless",
+          "heard"
         ],
         "title": "SoundFacts"
       },
@@ -8318,6 +8662,21 @@
               }
             ],
             "title": "Subtitlesjob"
+          },
+          "watched": {
+            "type": "boolean",
+            "title": "Watched"
+          },
+          "resume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume"
           }
         },
         "type": "object",
@@ -8336,7 +8695,9 @@
           "subtitles",
           "heard",
           "made",
-          "subtitlesJob"
+          "subtitlesJob",
+          "watched",
+          "resume"
         ],
         "title": "TitleFile"
       },

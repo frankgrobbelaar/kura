@@ -21,6 +21,8 @@ export interface PlayItem {
   path: string;
   /** The label is a file's name, written as paths are. */
   fileName?: boolean;
+  /** Where it stopped last time, in seconds: Play picks it up there. */
+  resume?: number | null;
 }
 
 /** What's playing: one of the page's videos (the next of them a click away), from a point. */
@@ -29,6 +31,8 @@ export interface Playing {
   index: number;
   /** Seconds in to start from. */
   from: number;
+  /** It starts where it stopped last time, rather than where it was asked to. */
+  resumed: boolean;
   /** Changes on every Play, so asking for the same video again starts it again. */
   turn: number;
 }
@@ -38,7 +42,8 @@ export type Place = { left: number; top: number } | null;
 
 interface PlayerContextValue {
   playing: Playing | null;
-  /** Plays `items[index]` from `from` seconds in, the rest of `items` next. */
+  /** Plays `items[index]` from `from` seconds in (where it stopped last time, unless said),
+   * the rest of `items` next. */
   play: (items: PlayItem[], index?: number, from?: number) => void;
   close: () => void;
   place: Place;
@@ -72,8 +77,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setFullState(on);
     fullScreen(on);
   }, []);
-  const play = useCallback((items: PlayItem[], index = 0, from = 0) => {
-    setPlaying((before) => ({ items, index, from, turn: (before?.turn ?? 0) + 1 }));
+  const play = useCallback((items: PlayItem[], index = 0, from?: number) => {
+    const resume = items[index]?.resume ?? 0;
+    setPlaying((before) => ({
+      items,
+      index,
+      from: from ?? resume,
+      resumed: from === undefined && resume > 0,
+      turn: (before?.turn ?? 0) + 1,
+    }));
   }, []);
   // Closed, or gone with the window's shell, the player gives the window back as it was.
   const close = useCallback(() => {

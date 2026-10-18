@@ -183,6 +183,37 @@ def test_a_tmdb_status_is_said_in_kuras_words():
     ]
 
 
+def test_a_show_ends_with_its_seasons_latest_episode_not_a_special_years_on():
+    details: dict[str, object] = {
+        **tv_details(
+            9,
+            "Starfall",
+            (2,),
+            first_aired=date(2019, 4, 3),
+            specials=1,
+            special_dates=(date(2024, 12, 24),),
+        ),
+        "last_air_date": "2024-12-24",
+    }
+
+    found = show(details)
+
+    assert found is not None
+    assert found.last_aired == date(2019, 4, 10)
+
+
+def test_a_film_being_made_is_still_to_come():
+    def standing(status: str) -> str | None:
+        found = film({**movie_details(5, "Starfall", date(2027, 8, 1), 0), "status": status})
+        return found.status if found else None
+
+    assert [standing(s) for s in ("In Production", "Post Production", "Released")] == [
+        "coming",
+        "coming",
+        "finished",
+    ]
+
+
 def test_a_tmdb_film_says_what_its_about_panel_shows():
     details = {
         **movie_details(5, "Starfall: The First Comet", date(2022, 8, 1), 102),

@@ -41,13 +41,21 @@ export function VideoSheet(props: {
   const name = found?.episodeName ?? episode.data?.name ?? null;
   const aired = found?.aired ?? episode.data?.aired ?? null;
   const overview = found ? found.overview : (episode.data?.overview ?? null);
+  const coming =
+    asked !== null &&
+    title.episodes.some(
+      (each) =>
+        each.season === asked.season && each.number === asked.number && each.state === "upcoming",
+    );
   const heading =
     season !== null && number !== null
       ? `${code(season, number, found?.episodeEnd ?? null)}${name ? ` · ${name}` : ""}`
       : found
         ? split(found.path)[0]
         : "…";
-  const line = [title.name, aired ? `aired ${day(aired)}` : null].filter(Boolean).join(" · ");
+  const line = [title.name, aired ? `${coming ? "airs" : "aired"} ${day(aired)}` : null]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <Sheet open={opened !== null} onOpenChange={(open) => !open && props.onClose()}>
       {opened && (
@@ -56,8 +64,8 @@ export function VideoSheet(props: {
             <Video file={found} onPlay={() => props.onPlay(found.id)} />
           ) : fileId === null && episode.data ? (
             <span className="inline-flex h-6 items-center gap-1.5 self-start rounded-full bg-tint/6 px-2.25 font-bold text-11">
-              <StatusShape state="missing" className="size-2" />
-              Not in your library
+              <StatusShape state={coming ? "upcoming" : "missing"} className="size-2" />
+              {coming ? "Not out yet" : "Not in your library"}
             </span>
           ) : (
             (file.isError || episode.isError) && (
@@ -168,7 +176,9 @@ function sound(track: FileDetails["sound"][number]): string {
             ? "7.1"
             : `${track.channels} channels`;
   return [
-    track.language ? languageName(track.language) : "Language not labelled",
+    track.language
+      ? `${languageName(track.language)}${track.heard ? ", as Kura heard it" : ""}`
+      : "Language not labelled",
     `${track.codec.toUpperCase()} ${layout}`,
     track.lossless ? "lossless" : null,
   ]

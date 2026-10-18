@@ -2,7 +2,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EngineProvider, type EngineStatus, type Hearable, type TitleSummary } from "@/lib/engine";
+import { PlayerLayer } from "@/features/player/player";
+import { PlayerProvider } from "@/features/player/player-context";
+import {
+  type Continuing,
+  EngineProvider,
+  type EngineStatus,
+  type Hearable,
+  type TitleSummary,
+} from "@/lib/engine";
 import { fakeEngine, franchiseOf, NO_LIBRARY, NO_SCAN, READY, SETTINGS } from "@/test/engine";
 import { HomePage } from "./home-page";
 
@@ -10,6 +18,9 @@ const shell = vi.hoisted(() => ({ invoke: vi.fn() }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: shell.invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: async () => () => {} }));
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({ setFullscreen: async () => {} }),
+}));
 
 const FOLDER = {
   id: 1,
@@ -89,18 +100,21 @@ function renderHome(engine: EngineStatus) {
   render(
     <QueryClientProvider client={queries}>
       <EngineProvider>
-        <MemoryRouter>
-          <Routes>
-            <Route index element={<HomePage />} />
-            <Route path="/setup" element={<p>Setup</p>} />
-            <Route path="/scan" element={<p>Scan</p>} />
-            <Route path="/match" element={<p>Match</p>} />
-            <Route path="/titles/:id" element={<p>A title</p>} />
-            <Route path="/franchises/:id" element={<p>A franchise</p>} />
-            <Route path="/history" element={<p>History</p>} />
-            <Route path="/subtitles" element={<p>Making subtitles</p>} />
-          </Routes>
-        </MemoryRouter>
+        <PlayerProvider>
+          <MemoryRouter>
+            <Routes>
+              <Route index element={<HomePage />} />
+              <Route path="/setup" element={<p>Setup</p>} />
+              <Route path="/scan" element={<p>Scan</p>} />
+              <Route path="/match" element={<p>Match</p>} />
+              <Route path="/titles/:id" element={<p>A title</p>} />
+              <Route path="/franchises/:id" element={<p>A franchise</p>} />
+              <Route path="/history" element={<p>History</p>} />
+              <Route path="/subtitles" element={<p>Making subtitles</p>} />
+            </Routes>
+          </MemoryRouter>
+          <PlayerLayer />
+        </PlayerProvider>
       </EngineProvider>
     </QueryClientProvider>,
   );
@@ -180,6 +194,102 @@ describe("HomePage", () => {
     expect(
       pictures.compareDocumentPosition(attention) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it("goes on with what was being watched, and leaves a title out when asked", async () => {
+    const stopped: Continuing = {
+      titleId: 2,
+      title: "Cowboy Bebop",
+      kind: "series",
+      hasPoster: false,
+      playedAt: "2026-10-18T10:00:00+00:00",
+      upNext: false,
+      video: {
+        fileId: 12,
+        season: 1,
+        episode: 2,
+        episodeEnd: null,
+        name: "Stray Dog Strut",
+        path: "D:\\Anime\\Cowboy Bebop\\S01E02.mkv",
+        duration: 1440,
+        resume: 600,
+      },
+      following: [
+        {
+          fileId: 13,
+          season: 1,
+          episode: 3,
+          episodeEnd: null,
+          name: "Honky Tonk Women",
+          path: "D:\\Anime\\Cowboy Bebop\\S01E03.mkv",
+          duration: 1440,
+          resume: null,
+        },
+      ],
+    };
+    const next: Continuing = {
+      ...stopped,
+      titleId: 3,
+      title: "Cowboy Bebop: The Movie",
+      kind: "movie",
+      upNext: true,
+      video: { ...stopped.video, fileId: 20, season: null, episode: null, resume: null },
+      following: [],
+    };
+    let going = [stopped, next];
+    const fetch = engineWith({
+      "/folders": [FOLDER],
+      "/library": { ...NO_LIBRARY, folders: 1, files: 3, size: 407_000_000, sd: 3 },
+      "/continue": () => going,
+      "DELETE /continue/3": () => {
+        going = [stopped];
+        return null;
+      },
+      "POST /player": {
+        ticket: "T1",
+        missing: null,
+        drive: "D:",
+        duration: 1440,
+        sound: [],
+        subtitles: [],
+        chapters: [],
+        chosenSound: null,
+        chosenSubtitles: null,
+        ready: [],
+      },
+    });
+    renderHome(READY);
+
+    const shelf = await screen.findByRole("region", { name: "Continue watching" });
+    const [first, second] = within(shelf).getAllByRole("listitem") as [HTMLElement, HTMLElement];
+    expect(first).toHaveTextContent("Cowboy Bebop");
+    expect(first).toHaveTextContent("S01E02 · Stray Dog Strut");
+    expect(first).toHaveTextContent("14 min left");
+    expect(second).toHaveTextContent("The film");
+    expect(second).toHaveTextContent("Up next");
+    // Before the summary of the library.
+    const pictures = await screen.findByRole("heading", { name: "Your videos by picture" });
+    expect(shelf.compareDocumentPosition(pictures) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    within(first).getByRole("button", { name: "Play Cowboy Bebop · S01E02" }).click();
+    const player = await screen.findByRole("region", { name: "Player" });
+    expect(player).toHaveTextContent("Cowboy Bebop · S01E02");
+    const video = player.querySelector("video") as HTMLVideoElement;
+    await waitFor(() => expect(video.getAttribute("src")).toContain("at=600.000"));
+    fireEvent(video, new Event("playing"));
+    expect(await within(player).findByRole("button", { name: "Next episode" })).toBeInTheDocument();
+    const [[, opened]] = sent(fetch, "POST", "/player") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(opened.body))).toEqual({ file: 12 });
+
+    fireEvent.keyDown(
+      within(second).getByRole("button", { name: "More for Cowboy Bebop: The Movie" }),
+      {
+        key: "Enter",
+      },
+    );
+    (await screen.findByRole("menuitem", { name: "Remove from Continue watching" })).click();
+    await waitFor(() => expect(within(shelf).getAllByRole("listitem")).toHaveLength(1));
+    expect(sent(fetch, "DELETE", "/continue/3")).toHaveLength(1);
   });
 
   it("says what the videos can be heard and read in, and leads to making English subtitles", async () => {

@@ -63,7 +63,9 @@ and [../CLAUDE.md](../CLAUDE.md).
   the shell): a page offers Play with `usePlayer().play(items, index, from)`, the videos after
   `index` playing next. Its `<video>` plays the engine's stream address (`streamAddress` in
   `lib/engine.tsx`), which carries the video's ticket instead of the token. The player stays
-  dark in light mode (`scheme-dark`), as a picture does.
+  dark in light mode (`scheme-dark`), as a picture does. A `PlayItem`'s `resume` is where the
+  video stopped last time: Play picks it up there unless `from` says otherwise, and the player
+  tells the engine where it is as it plays (`usePositionNote`), a look of a few seconds aside.
 - English subtitles are asked for on their own page (`features/subtitles/make-page.tsx`, at
   `/subtitles?title=7&season=1`, or `/subtitles` for everything without English): a title's
   videos and Home's card lead there. Whatever Kura made from the sound says so where it shows
