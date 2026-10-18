@@ -210,6 +210,25 @@ def test_a_change_while_the_owner_paused_the_scan_waits(
     assert scans.started == 0
 
 
+def test_what_cant_be_told_of_today_keeps_nothing_waiting(
+    conn: sqlite3.Connection, watcher: Watcher, monkeypatch: pytest.MonkeyPatch
+):
+    def busy(*_: object) -> list[object]:
+        raise sqlite3.OperationalError("database is locked")
+
+    def told(title: str, body: str, *, link: str | None = None) -> None:
+        raise AssertionError(title)
+
+    monkeypatch.setattr("kura.watch.coming.out_today", busy)
+    asked: list[bool] = []
+    monkeypatch.setattr(watcher, "refresh", lambda: asked.append(True) or 0)
+    monkeypatch.setattr(watcher, "_notify", told)
+
+    watcher.tick()
+
+    assert asked == [True]
+
+
 def test_a_new_video_in_a_watched_folder_is_noticed(
     watcher: Watcher, scans: Scans, clock: Clock, conn: sqlite3.Connection, tmp_path: Path
 ):

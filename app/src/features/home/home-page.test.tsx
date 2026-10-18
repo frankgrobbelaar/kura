@@ -321,7 +321,11 @@ describe("HomePage", () => {
     expect(first).toHaveTextContent("Cowboy Bebop · S01E04");
     expect(first).toHaveTextContent("It didn't play at 12:05");
     within(first).getByRole("button", { name: "Try again" }).click();
-    expect(await within(first).findByText("It played this time.")).toBeInTheDocument();
+    expect(
+      await within(sheet).findByText(
+        "Cowboy Bebop · S01E04 played this time, so it's off the list.",
+      ),
+    ).toBeInTheDocument();
     fireEvent.keyDown(
       within(second).getByRole("button", { name: "More for Cowboy Bebop · S01E05" }),
       {

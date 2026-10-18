@@ -163,11 +163,14 @@ class Watcher:
         if self._clock() - self._refreshed_at < TICK:
             return
         self._refreshed_at = self._clock()
-        self.tell_aired()
         if self._scanner.status().state != "running":
             self.refresh()
             if not self.pending:  # a change's scan never waits on AniList
                 self.look_further()
+        try:
+            self.tell_aired()
+        except sqlite3.Error as error:  # the records busy a moment: told at the next look
+            log.info("What's out today couldn't be told now: %s", error)
 
     def refresh(self) -> int:
         """Asks again for the episode lists that are due, of the titles the library holds a

@@ -356,7 +356,10 @@ def title_poster(title_id: int, conn: Database, paths: Paths, web: Web) -> FileR
     kept = artwork.poster(paths, row["poster"], web) if row is not None else None
     if kept is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This title has no poster yet.")
-    return FileResponse(kept, media_type=artwork.media_type(kept))
+    # The owner can choose another at any time: the window asks again rather than keep one.
+    return FileResponse(
+        kept, media_type=artwork.media_type(kept), headers={"Cache-Control": "no-cache"}
+    )
 
 
 @router.get(

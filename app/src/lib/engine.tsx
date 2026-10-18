@@ -15,6 +15,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 /** The engine as Kura's shell reports it. Mirrors `EngineStatus` in src-tauri/src/engine.rs. */
@@ -917,7 +918,7 @@ export const useComing = () => useEngineQuery<ComingEpisode[]>("/coming");
 /** Home's "Continue watching": the latest played first. */
 export const useContinue = () => useEngineQuery<Continuing[]>("/continue");
 /** Marks videos watched or not: `{ path: "/files/watched", body: { files, watched } }`. */
-export const useMarkWatched = () => useEngineAction<void>(["/titles", "/continue"]);
+export const useMarkWatched = () => useEngineAction<void>(["/titles", "/continue", "/library"]);
 /** Leaves a title out of "Continue watching" till it plays again: `{ path: "/continue/7" }`. */
 export const useStopContinuing = () => useEngineAction<void>(["/continue"], "DELETE");
 
@@ -936,7 +937,7 @@ export function usePositionNote() {
         body: JSON.stringify({ position, duration: duration || null }),
         headers: { "Content-Type": "application/json" },
       })
-        .then(() => (stopped ? refresh(["/titles", "/continue"]) : undefined))
+        .then(() => (stopped ? refresh(["/titles", "/continue", "/library"]) : undefined))
         // A position that didn't reach the engine is a small thing: the next one says it again.
         .catch(() => {});
     },
@@ -1279,8 +1280,27 @@ export function useEnginePicture(path: string | null): {
 }
 
 /** A title's poster, when it has one. */
-export const usePoster = (titleId: number, has: boolean) =>
-  useEngineImage(has ? `/titles/${titleId}/poster` : null);
+// How many times each title's poster was chosen this session: its pictures load anew.
+const posterTurns = new Map<number, number>();
+const posterListeners = new Set<() => void>();
+
+/** The owner chose another poster for a title: every picture of it loads anew. */
+export function posterChanged(titleId: number) {
+  posterTurns.set(titleId, (posterTurns.get(titleId) ?? 0) + 1);
+  for (const listener of posterListeners) listener();
+}
+
+function onPosterChange(listener: () => void) {
+  posterListeners.add(listener);
+  return () => {
+    posterListeners.delete(listener);
+  };
+}
+
+export function usePoster(titleId: number, has: boolean) {
+  const turn = useSyncExternalStore(onPosterChange, () => posterTurns.get(titleId) ?? 0);
+  return useEngineImage(has ? `/titles/${titleId}/poster${turn ? `?v=${turn}` : ""}` : null);
+}
 /** A guess's cover from AniList, through the engine. */
 export const useCover = (address: string | null) =>
   useEngineImage(address ? `/artwork?address=${encodeURIComponent(address)}` : null);

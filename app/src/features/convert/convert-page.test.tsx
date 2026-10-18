@@ -203,7 +203,7 @@ describe("ConvertPage", () => {
 
   it("starts with the videos ticked on a title's page chosen", async () => {
     fakeEngine({ "/convert": OPTIONS, "/franchises": FRANCHISES, "/queue": QUEUE });
-    renderConvert("/convert?files=1,2,junk");
+    renderConvert("/convert?files=1,2,4,junk"); // 4 won't play: it can't be converted
 
     expect(await screen.findAllByText("2 episodes")).toHaveLength(2); // the season, and the chip
     expect(screen.getByRole("checkbox", { name: /Season 1/ })).toBeChecked();

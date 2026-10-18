@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   type PosterOption,
+  posterChanged,
   type TitleDetail,
   useChoosePoster,
   useCover,
@@ -22,7 +23,12 @@ export function PosterSheet(props: { title: TitleDetail; open: boolean; onClose:
   const pick = (poster: string | null) =>
     choose.mutate(
       { path: `/titles/${title.id}/poster`, body: { poster } },
-      { onSuccess: props.onClose },
+      {
+        onSuccess: () => {
+          posterChanged(title.id);
+          props.onClose();
+        },
+      },
     );
   return (
     <Sheet open={open} onOpenChange={(now) => !now && props.onClose()}>

@@ -73,7 +73,8 @@ def check_one(file_id: int, conn: Database, request: Request) -> Played:
     if programs is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Kura can't play it till ffmpeg is here.")
     row = conn.execute(
-        "SELECT id, path, duration, health_problem FROM files WHERE id = ? AND gone_at IS NULL",
+        """SELECT id, path, duration, probe, health_problem FROM files
+           WHERE id = ? AND gone_at IS NULL""",
         (file_id,),
     ).fetchone()
     if row is None:

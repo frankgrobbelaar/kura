@@ -724,7 +724,8 @@ function Videos(props: {
   const { title, query } = props;
   const playing = usePlayingFile();
   const navigate = useNavigate();
-  // Videos ticked to do several at once, kept as the season or the search changes.
+  // Videos ticked to do several at once, kept as the season or the search changes; while a
+  // search is on, only the ticked ones it shows are acted on.
   const [picked, setPicked] = useState<ReadonlySet<number>>(new Set());
   const all = shelves(title.videos);
   const shown =
@@ -753,7 +754,7 @@ function Videos(props: {
   const seasonal = !query && (season(shown) || shown.key === "0");
   const make = `/subtitles?title=${title.id}${seasonal ? `&season=${shown.key}` : ""}`;
   const count = title.videos.length;
-  const ticked = title.videos.filter((video) => picked.has(video.id));
+  const ticked = (query ? found : title.videos).filter((video) => picked.has(video.id));
   const tickedShown = found.filter((video) => picked.has(video.id)).length;
   const allShown =
     tickedShown === 0 ? false : tickedShown === found.length ? true : ("mixed" as const);

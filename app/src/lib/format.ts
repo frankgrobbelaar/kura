@@ -55,6 +55,7 @@ export function keptFor(days: number | null | undefined): string {
 
 /** "233 MB", "1.1 GB" from a billion bytes, "16 GB" from ten billion, "320 KB" under a million. */
 export function size(bytes: number): string {
+  if (bytes >= 1e12) return `${(bytes / 1e12).toFixed(1)} TB`;
   if (bytes >= 1e10) return `${Math.round(bytes / 1e9)} GB`;
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
   if (bytes >= 1e6) return `${Math.round(bytes / 1e6)} MB`;

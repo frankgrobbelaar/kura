@@ -478,6 +478,26 @@ describe("TitlePage", () => {
     expect(screen.queryByRole("group", { name: "Ticked videos" })).not.toBeInTheDocument();
   });
 
+  it("acts only on the ticked videos a search shows", async () => {
+    const two = { ...DBZ, videos: [...DBZ.videos, video(2, 1, 2, "S01E02")] };
+    const fetch = renderTitle(two, undefined, null, { "POST /files/watched": null });
+
+    (await screen.findByRole("checkbox", { name: "Tick every video of Season 1" })).click();
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "Search the videos of Dragon Ball Z" }),
+      {
+        target: { value: "S01E02" },
+      },
+    );
+    const bar = await screen.findByRole("group", { name: "Ticked videos" });
+    expect(bar).toHaveTextContent("1 ticked");
+    within(bar).getByRole("button", { name: "Mark as watched" }).click();
+
+    await waitFor(() => expect(sent(fetch, "POST", "/files/watched")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "POST", "/files/watched") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({ files: [2], watched: true });
+  });
+
   it("converts ticked videos, or makes their English subtitles, from those pages", async () => {
     const two = { ...DBZ, videos: [...DBZ.videos, video(2, 1, 2, "S01E02")] };
     renderTitle(two);
@@ -518,7 +538,8 @@ describe("TitlePage", () => {
       width: 1000,
       height: 1500,
     });
-    const fetch = renderTitle(DBZ, undefined, null, {
+    const fetch = renderTitle({ ...DBZ, hasPoster: true }, undefined, null, {
+      "/titles/1/poster": () => new Response(new Blob(["a poster"]), { status: 200 }),
       "/titles/1/posters": {
         found: "/a.jpg",
         chosen: "/c.jpg",
@@ -543,6 +564,12 @@ describe("TitlePage", () => {
     const [[, init]] = sent(fetch, "PUT", "/titles/1/poster") as [[unknown, RequestInit]];
     expect(JSON.parse(String(init.body))).toEqual({ poster: "/b.jpg" });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    // The poster on the page loads anew, rather than the one from before.
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.some(([input]) => String(input).endsWith("/titles/1/poster?v=1")),
+      ).toBe(true),
+    );
   });
 
   it("says which videos couldn't be deleted, and why", async () => {

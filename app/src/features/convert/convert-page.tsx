@@ -175,7 +175,7 @@ export function ConvertPage() {
     );
   }
   const groups = tree(files, franchises.data);
-  const chosen = files.filter((file) => selected.has(file.fileId));
+  const chosen = open(files).filter((file) => selected.has(file.fileId));
   const timing = (when ?? (queue.data?.schedule === "nights" ? "nights" : "now")) as When;
 
   function toggle(node: Convertible[]) {

@@ -11,6 +11,7 @@ describe("size", () => {
     expect(size(8_200_000_000)).toBe("8.2 GB");
     expect(size(16_400_000_000)).toBe("16 GB");
     expect(size(931_000_000_000)).toBe("931 GB");
+    expect(size(1_240_000_000_000)).toBe("1.2 TB");
   });
 });
 

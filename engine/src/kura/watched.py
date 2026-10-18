@@ -155,12 +155,18 @@ def _continuing(conn: sqlite3.Connection, title_id: int, played_at: str) -> Cont
         (title_id,),
     ).fetchall()
     by_id = {row["id"]: row for row in rows}
-    videos = [Video(row["id"], row["season"], row["episode"], row["path"]) for row in rows]
-    last = [v for v in videos if by_id[v.id]["played_at"] == played_at and _counts(by_id[v.id])]
+    # Two copies of an episode are one step: the one played last stands for both, watched once
+    # either is.
+    kept, watched = _one_copy(rows)
+    videos = [Video(row["id"], row["season"], row["episode"], row["path"]) for row in kept]
+    last = [
+        video
+        for video in videos
+        if by_id[video.id]["played_at"] == played_at and _counts(by_id[video.id])
+    ]
     if title is None or not last:
         return None
     latest = furthest(last)
-    watched = {row["id"] for row in rows if _watched(row)}
     if resume_at(by_id[latest.id]["position"], by_id[latest.id]["duration"]) is not None:
         chosen, up = latest, False
     else:
@@ -178,6 +184,26 @@ def _continuing(conn: sqlite3.Connection, title_id: int, played_at: str) -> Cont
         video=_next(by_id[chosen.id]),
         following=[_next(by_id[each.id]) for each in following(videos, chosen)[:FOLLOWING]],
     )
+
+
+def _one_copy(rows: list[sqlite3.Row]) -> tuple[list[sqlite3.Row], set[int]]:
+    """A title's videos with one copy of each episode (the one last watched or stopped part way,
+    else the one last looked at, else the first found), and which of those count as watched: an
+    episode is, once any copy of it is."""
+    copies: dict[tuple[int, int], list[sqlite3.Row]] = {}
+    kept: list[sqlite3.Row] = []
+    for row in rows:
+        if row["season"] is None or row["episode"] is None:
+            kept.append(row)
+        else:
+            copies.setdefault((row["season"], row["episode"]), []).append(row)
+    watched = {row["id"] for row in kept if _watched(row)}
+    for same in copies.values():
+        best = max(same, key=lambda row: (_counts(row), row["played_at"] or "", -row["id"]))
+        kept.append(best)
+        if any(_watched(row) for row in same):
+            watched.add(best["id"])
+    return kept, watched
 
 
 def _counts(row: sqlite3.Row) -> bool:

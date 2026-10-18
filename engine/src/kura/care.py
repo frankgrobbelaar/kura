@@ -42,17 +42,20 @@ class Care:
         transport: Send | None = None,
         programs: Callable[[], Programs | None] | None = None,
         notify: Notify | None = None,
+        busy: Callable[[], bool] = lambda: False,
     ) -> None:
         """`hold` holds scans and file moves off (Scanner.hold); `transport` fetches pictures;
-        `programs` is the ffmpeg the health check plays videos with, and `notify` tells of the
-        ones that didn't play."""
+        `programs` is the ffmpeg the health check plays videos with, `notify` tells of the ones
+        that didn't play, and `busy` says the queue has a job, which the check waits for."""
         self._paths = paths
         self._hold = hold
         self._now = now
         self._transport = transport
         self._programs = programs
         self._notify = notify
+        self._busy = busy
         self._checking = False  # the health check has more to play tonight
+        self._unplayed: list[int] = []  # what tonight's check found, told once it's done
         self._wake = threading.Event()
         self._cleared_on: date | None = None  # the day the quarantine was last cleared out
         self._resting_until: datetime | None = None  # after a backup failed
@@ -104,29 +107,40 @@ class Care:
         self.check_health()
 
     def check_health(self) -> int:
-        """At night, test-plays the videos the health check is due to, for a few minutes, and
-        tells of those that didn't play. Returns how many didn't."""
+        """At night, while the queue has no job, test-plays the videos the health check is due
+        to, for a few minutes. Once the night's check is done (or the night is), tells of those
+        that didn't play, in one notification. Returns how many didn't, this time."""
         self._checking = False
         programs = self._programs() if self._programs else None
         now = self._now()
         if programs is None or not checkup.at_night(now):
+            self._tell_unplayed()
             return 0
+        if self._busy():
+            return 0  # converting or making subtitles: the check waits for the queue's job
         with closing(db.connect(self._paths.database)) as conn:
             if not checkup.is_on(conn):
                 return 0
             found = checkup.night(
                 conn, programs, self._now, until=now + CHECK_FOR, stop=self._stopping.is_set
             )
-            self._checking = bool(checkup.due(conn, self._now(), 1))
-        if found and self._notify:
-            many = len(found) > 1
-            them = "them" if many else "it"
-            self._notify(
-                f"{len(found)} {'videos' if many else 'video'} didn't play",
-                f"Tonight's health check found {them}: Home lists what didn't play.",
-                link="/",
-            )
-        return len(found)
+        self._unplayed += found.unplayed
+        self._checking = found.more
+        if not found.more:
+            self._tell_unplayed()
+        return len(found.unplayed)
+
+    def _tell_unplayed(self) -> None:
+        """Tells of the videos tonight's check found that didn't play, once."""
+        count, self._unplayed = len(self._unplayed), []
+        if count == 0 or self._notify is None:
+            return
+        them = "them" if count > 1 else "it"
+        self._notify(
+            f"{count} {'videos' if count > 1 else 'video'} didn't play",
+            f"Tonight's health check found {them}: Home lists what didn't play.",
+            link="/",
+        )
 
     def _loop(self) -> None:
         while True:

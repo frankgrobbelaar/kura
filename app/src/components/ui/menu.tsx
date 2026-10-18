@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /** A row's "More" menu: its ⋮ button, and what it can do, listed beside it. Radix's dropdown
- * menu, so the arrow keys move through it and Escape closes it. */
+ * menu, so the arrow keys move through it and Escape closes it. It opens above a side sheet. */
 export function RowMenu({ label, children }: { label: string; children: ReactNode }) {
   return (
     <DropdownMenu.Root>
@@ -18,7 +18,7 @@ export function RowMenu({ label, children }: { label: string; children: ReactNod
         <DropdownMenu.Content
           align="end"
           sideOffset={4}
-          className="z-50 flex min-w-44 flex-col rounded-16 border border-edge bg-dialog p-1.5 text-13 shadow-float"
+          className="z-60 flex min-w-44 flex-col rounded-16 border border-edge bg-dialog p-1.5 text-13 shadow-float"
         >
           {children}
         </DropdownMenu.Content>

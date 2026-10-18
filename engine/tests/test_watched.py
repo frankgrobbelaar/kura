@@ -55,6 +55,26 @@ def test_once_seen_to_its_end_the_next_episode_is_up_next(conn: sqlite3.Connecti
     assert (going.up_next, going.video.file_id, going.video.resume) == (True, 2, None)
 
 
+def test_two_copies_of_an_episode_are_one_step(conn: sqlite3.Connection, shelf: None):
+    with conn:
+        conn.execute(
+            """INSERT INTO files (id, folder_id, path, size, modified, found_at, seen_at, probe,
+                                  duration, title_id, season, episode)
+               SELECT 9, folder_id, path || ' (copy).mkv', size, modified, found_at, seen_at,
+                      probe, duration, 1, 1, 2
+               FROM files WHERE id = 2"""
+        )
+    watched.note(conn, 1, 1440, 1440, "2026-10-18T10:00:00+00:00")
+
+    [going] = watched.continuing(conn)
+    assert going.video.episode == 2
+    assert [each.episode for each in going.following] == [3]  # one E02, then E03
+
+    watched.note(conn, 9, 1440, 1440, "2026-10-18T11:00:00+00:00")  # its copy, seen
+    [going] = watched.continuing(conn)
+    assert (going.video.episode, going.up_next) == (3, True)
+
+
 def test_played_again_a_watched_video_stays_watched(conn: sqlite3.Connection, shelf: None):
     watched.note(conn, 1, 1400, 1440, "2026-10-18T10:00:00+00:00")
     watched.note(conn, 1, 300, 1440, "2026-10-18T11:00:00+00:00")

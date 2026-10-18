@@ -202,6 +202,7 @@ def create_app(
         transport=transport,
         programs=lambda: app.state.programs(),
         notify=notify,
+        busy=lambda: app.state.queue.busy(),
     )
     # The middleware added last runs first: CORS answers the webview's preflight
     # checks, then only requests addressed to this PC get through.

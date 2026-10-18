@@ -21,6 +21,7 @@ It answers the commands kura/core/convert.py builds, without converting anything
 KURA_FAKE_FAIL names a step that fails instead: "encode", "play" or "frame", "decode" (once its
 frames are out, as a decoder meeting damage), "convert" (one command, 1,200 frames in), "stream"
 (before its first bytes), "midstream" (after them), "subtitles", "sound" or "merge".
+KURA_FAKE_PICTURES is how many pictures a stretch of the health check's test play decodes (120).
 KURA_FAKE_NO_ENCODERS names the encoders this PC hasn't, separated by commas ("libplacebo" for
 Anime4K), and KURA_FAKE_WHY what each says as it doesn't start.
 KURA_FAKE_SLOW is the seconds the decoder takes over each frame (none), so a test can stop a
@@ -117,6 +118,14 @@ def main() -> None:
             print("hevc_nvenc: No capable devices found", file=sys.stderr)
             sys.exit(1)
         Path(args[-1]).write_bytes(f"converted {received} bytes of frames".encode())
+        return
+    if "-progress" in args and "null" in args:  # the health check counts the pictures that came
+        if fail == "play":
+            print("Invalid data found when processing input", file=sys.stderr)
+            sys.exit(1)
+        print("[h264 @ 0] co located POCs unavailable", file=sys.stderr)  # said, and fine
+        print(f"frame={os.environ.get('KURA_FAKE_PICTURES', '120')}")
+        print("progress=end")
         return
     if "-progress" in args:
         if fail == "encode":

@@ -253,7 +253,7 @@ function HealthCheck() {
     >
       <Toggle
         label="Test-play every video overnight"
-        text="Between 23:00 and 07:00, a few at a time, Kura plays a few seconds of each at three points, as it checks every file it converts, and again a month on. It changes nothing: what didn't play is listed on Home."
+        text="Between 23:00 and 07:00, while nothing converts, Kura plays a few seconds of each at three points, a few at a time, and again a month on. It changes nothing: what didn't play is listed on Home."
         checked={settings.healthCheck}
         onChange={(healthCheck) =>
           save.mutate({ path: "/settings", body: { ...settings, healthCheck } })

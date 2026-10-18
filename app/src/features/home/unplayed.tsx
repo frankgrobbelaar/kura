@@ -1,4 +1,5 @@
 import { Play } from "lucide-react";
+import { useState } from "react";
 import { FileMenuItems, FileNote, useFileActions } from "@/components/file-actions";
 import { Button } from "@/components/ui/button";
 import { MenuItem, MenuSeparator, RowMenu } from "@/components/ui/menu";
@@ -13,6 +14,8 @@ export function UnplayedSheet({ open, onClose }: { open: boolean; onClose: () =>
   const checkup = useCheckup();
   const found = checkup.data?.unplayed ?? [];
   const { play } = usePlayer();
+  // A video that played when tried again leaves the list: the sheet says so.
+  const [playedNow, setPlayedNow] = useState<string | null>(null);
   return (
     <Sheet open={open} onOpenChange={(now) => !now && onClose()}>
       {open && (
@@ -20,6 +23,11 @@ export function UnplayedSheet({ open, onClose }: { open: boolean; onClose: () =>
           title="Videos that didn't play"
           description="The overnight health check stopped in them. Play one to see for yourself: it's only broken once you say so."
         >
+          {playedNow && (
+            <p role="status" className="text-13 text-fg-soft">
+              {playedNow} played this time, so it's off the list.
+            </p>
+          )}
           {found.length === 0 ? (
             <p className="text-13 text-fg-muted">Every video the check played, played.</p>
           ) : (
@@ -28,6 +36,7 @@ export function UnplayedSheet({ open, onClose }: { open: boolean; onClose: () =>
                 <Row
                   key={video.fileId}
                   video={video}
+                  onPlayedNow={() => setPlayedNow(labelOf(video))}
                   onPlay={() => {
                     onClose();
                     play([playItem(video)]);
@@ -42,7 +51,8 @@ export function UnplayedSheet({ open, onClose }: { open: boolean; onClose: () =>
   );
 }
 
-function Row({ video, onPlay }: { video: UnplayedVideo; onPlay: () => void }) {
+function Row(props: { video: UnplayedVideo; onPlay: () => void; onPlayedNow: () => void }) {
+  const { video, onPlay } = props;
   const action = useCheckupAction();
   const again = useCheckOne();
   const files = useFileActions();
@@ -81,13 +91,18 @@ function Row({ video, onPlay }: { video: UnplayedVideo; onPlay: () => void }) {
           size="sm"
           variant="ghost"
           disabled={again.isPending}
-          onClick={() => again.mutate({ path: `/files/${video.fileId}/check` })}
+          onClick={() =>
+            again.mutate(
+              { path: `/files/${video.fileId}/check` },
+              { onSuccess: (done) => !done.problem && props.onPlayedNow() },
+            )
+          }
         >
           {again.isPending ? "Trying…" : "Try again"}
         </Button>
-        {tried && (
+        {tried?.problem && (
           <span role="status" className="text-12 text-fg-muted">
-            {tried.problem ? "It stopped again." : "It played this time."}
+            It stopped again.
           </span>
         )}
       </span>
