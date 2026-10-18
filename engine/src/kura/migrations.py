@@ -362,4 +362,14 @@ MIGRATIONS: Final[tuple[str, ...]] = (
         watched_at TEXT            -- seen to its last tenth, or marked watched
     ) STRICT;
     """,
+    # 25. The episodes the owner was told are out today (kura/coming.py), so each is told once.
+    """
+    CREATE TABLE aired_told (
+        title_id INTEGER NOT NULL REFERENCES titles (id) ON DELETE CASCADE,
+        season   INTEGER NOT NULL,
+        number   INTEGER NOT NULL,
+        told_at  TEXT NOT NULL,
+        PRIMARY KEY (title_id, season, number)
+    ) STRICT;
+    """,
 )

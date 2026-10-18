@@ -267,9 +267,9 @@ describe("HomePage", () => {
     expect(first).toHaveTextContent("14 min left");
     expect(second).toHaveTextContent("The film");
     expect(second).toHaveTextContent("Up next");
-    // Before the summary of the library.
+    // After the summary of the library at the top.
     const pictures = await screen.findByRole("heading", { name: "Your videos by picture" });
-    expect(shelf.compareDocumentPosition(pictures) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pictures.compareDocumentPosition(shelf) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     within(first).getByRole("button", { name: "Play Cowboy Bebop · S01E02" }).click();
     const player = await screen.findByRole("region", { name: "Player" });
@@ -290,6 +290,48 @@ describe("HomePage", () => {
     (await screen.findByRole("menuitem", { name: "Remove from Continue watching" })).click();
     await waitFor(() => expect(within(shelf).getAllByRole("listitem")).toHaveLength(1));
     expect(sent(fetch, "DELETE", "/continue/3")).toHaveLength(1);
+  });
+
+  it("lists each show's next episode still to come, the soonest first", async () => {
+    const day = (from: number) => {
+      const when = new Date();
+      when.setDate(when.getDate() + from);
+      return `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, "0")}-${String(
+        when.getDate(),
+      ).padStart(2, "0")}`;
+    };
+    const next = (titleId: number, title: string, from: number, later = 0) => ({
+      titleId,
+      title,
+      kind: "series",
+      hasPoster: false,
+      season: 1,
+      number: 5,
+      name: "The Café at Dawn",
+      aired: day(from),
+      later,
+    });
+    engineWith({
+      "/folders": [FOLDER],
+      "/library": { ...NO_LIBRARY, folders: 1, files: 3, size: 407_000_000, sd: 3 },
+      "/coming": [
+        next(1, "Starfall Academy", 0, 7),
+        next(2, "Lanterns", 1),
+        ...[3, 4, 5, 6, 7].map((id) => next(id, `Show ${id}`, 9)),
+      ],
+    });
+    renderHome(READY);
+
+    const coming = await screen.findByRole("region", { name: "Coming up" });
+    const rows = within(coming).getAllByRole("listitem");
+    expect(rows).toHaveLength(5);
+    expect(rows[0]).toHaveTextContent(
+      /^Today.*Starfall AcademyS01E05 · The Café at Dawn7 more listed$/,
+    );
+    expect(rows[1]).toHaveTextContent("Tomorrow");
+    expect(within(rows[0] as HTMLElement).getByRole("link")).toHaveAttribute("href", "/titles/1");
+    within(coming).getByRole("button", { name: "Show all 7" }).click();
+    await waitFor(() => expect(within(coming).getAllByRole("listitem")).toHaveLength(7));
   });
 
   it("says what the videos can be heard and read in, and leads to making English subtitles", async () => {

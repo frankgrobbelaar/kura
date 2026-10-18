@@ -8,6 +8,7 @@
   for finished ones (kura/identify.py decides when one is due), and the gap reports follow.
 - The rest of each franchise is looked up on AniList a few entries at a time, and each entry
   asked about again weekly, or daily while it airs (kura/franchises.py).
+- On the day an episode of one of the library's shows airs, the owner is told (kura/coming.py).
 
 Nothing here runs while a scan does, and a scan the owner paused stays paused.
 """
@@ -26,12 +27,13 @@ from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers.api import DEFAULT_OBSERVER_TIMEOUT, BaseObserver
 from watchdog.observers.read_directory_changes import WindowsApiEmitter
 
-from kura import credentials, db, franchises
+from kura import coming, credentials, db, franchises
 from kura.anilist import AniList
 from kura.cache import Cache
 from kura.config import DataPaths
 from kura.core.catalog import TitleKind
 from kura.core.extensions import is_video
+from kura.events import Notify
 from kura.identify import (
     AIRING_EVERY,
     due,
@@ -72,8 +74,10 @@ class Watcher:
         now: Callable[[], datetime],
         clock: Callable[[], float] = time.monotonic,
         anilist: AniList | None = None,
+        notify: Notify | None = None,
     ) -> None:
         self._paths = paths
+        self._notify = notify
         self._scanner = scanner
         self._transport = transport
         self._now = now
@@ -159,6 +163,7 @@ class Watcher:
         if self._clock() - self._refreshed_at < TICK:
             return
         self._refreshed_at = self._clock()
+        self.tell_aired()
         if self._scanner.status().state != "running":
             self.refresh()
             if not self.pending:  # a change's scan never waits on AniList
@@ -202,6 +207,20 @@ class Watcher:
             if asked:
                 write_reports(conn, now=self._now())
         return asked
+
+    def tell_aired(self) -> int:
+        """Tells the owner of the episodes out today that the library hasn't got, once each.
+        Returns how many."""
+        if self._notify is None:
+            return 0
+        now = self._now()
+        with closing(db.connect(self._paths.database)) as conn:
+            found = coming.out_today(conn, now.date(), now.isoformat())
+        said = coming.told(found)
+        if said:
+            title, line, link = said
+            self._notify(title, line, link=link)
+        return len(found)
 
     def look_further(self) -> int:
         """Asks AniList about a few more entries of the library's franchises

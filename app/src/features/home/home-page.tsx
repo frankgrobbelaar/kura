@@ -24,6 +24,7 @@ import {
 } from "@/lib/engine";
 import { dayAndTime, isEnglish, scanChanges } from "@/lib/format";
 import { Attention } from "./attention";
+import { ComingUp } from "./coming-up";
 import { ContinueWatching } from "./continue-watching";
 import { Recovered } from "./recovered";
 import { Shelf } from "./shelf";
@@ -39,6 +40,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const [sort, setSort] = useState<TitleSort>("released");
   const [query, setQuery] = useAddressSearch();
+  const [allComing, setAllComing] = useState(false);
 
   const empty = folders.data?.length === 0;
   if (empty && settings.data && !settings.data.setUp) return <Navigate to="/setup" replace />;
@@ -83,9 +85,10 @@ export function HomePage() {
           <TilesSkeleton count={4} />
         </Loading>
       )}
-      {working && library.data && !empty && <ContinueWatching />}
       {working && library.data && !empty && <Pictures library={library.data} />}
       {working && !empty && videos.length > 0 && <Languages videos={videos} />}
+      {working && library.data && !empty && <ContinueWatching />}
+      {working && library.data && !empty && <ComingUp all={allComing} onAll={setAllComing} />}
       {working && scan.data && library.data && !empty && (
         <Attention
           waiting={scan.data.waiting}

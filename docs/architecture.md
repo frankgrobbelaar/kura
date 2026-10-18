@@ -361,6 +361,11 @@ latest video that counts (stopped part way, or watched): stopped part way, it's 
 watched, the next one not watched yet is up next, in the order a title's page plays them. A
 title can be left out of it (`DELETE /continue/{id}`) till one of its videos plays again.
 
+Home's "Coming up" (`kura/coming.py`, `GET /coming`) is each title's next episode airing today
+or later that no video of the library's covers, from the episode lists Kura keeps (asked for
+hourly while a show airs). On the day one airs, the watcher tells the owner as it looks around
+(`Watcher.tell_aired`, one notification for the day's), and `aired_told` keeps each told once.
+
 The title bar's search (`kura/search.py`, `GET /search?q=`) finds the library's anime by any
 name AniList says they go by, their episodes by code or name (the ones the library lacks too),
 and its videos by their files' names. Every word typed must be there, however a name is written:

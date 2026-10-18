@@ -23,6 +23,7 @@ from kura import __version__, changes, db
 from kura.anilist import AniList
 from kura.api import (
     backups,
+    coming,
     convert,
     data,
     files,
@@ -133,7 +134,11 @@ def create_app(
         scans: Scanner = running.state.scanner
         scans.recover()  # carry on a scan that an exit or a crash stopped
         anilist: AniList = running.state.anilist
-        watcher = Watcher(paths, scans, transport, now=_now, anilist=anilist) if watch else None
+        watcher = (
+            Watcher(paths, scans, transport, now=_now, anilist=anilist, notify=notify)
+            if watch
+            else None
+        )
         running.state.watcher = watcher
         if watcher is not None:
             watcher.start()
@@ -210,6 +215,7 @@ def create_app(
         titles,
         files,
         watched,
+        coming,
         search,
         review,
         tidy,

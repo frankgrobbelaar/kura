@@ -1203,6 +1203,34 @@
         }
       }
     },
+    "/coming": {
+      "get": {
+        "summary": "Coming Up",
+        "description": "Each of the library's titles with an episode airing today or later that the library hasn't\ngot: its next one, the soonest first.",
+        "operationId": "coming_up_coming_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ComingEpisode"
+                  },
+                  "type": "array",
+                  "title": "Response Coming Up Coming Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/search": {
       "get": {
         "summary": "Find",
@@ -3780,6 +3808,66 @@
           "cleared"
         ],
         "title": "Cleared"
+      },
+      "ComingEpisode": {
+        "properties": {
+          "titleId": {
+            "type": "integer",
+            "title": "Titleid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TitleKind"
+          },
+          "hasPoster": {
+            "type": "boolean",
+            "title": "Hasposter"
+          },
+          "season": {
+            "type": "integer",
+            "title": "Season"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "aired": {
+            "type": "string",
+            "title": "Aired"
+          },
+          "later": {
+            "type": "integer",
+            "title": "Later"
+          }
+        },
+        "type": "object",
+        "required": [
+          "titleId",
+          "title",
+          "kind",
+          "hasPoster",
+          "season",
+          "number",
+          "name",
+          "aired",
+          "later"
+        ],
+        "title": "ComingEpisode",
+        "description": "A title's next episode, and how many more its list has after it."
       },
       "Compared": {
         "properties": {

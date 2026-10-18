@@ -24,6 +24,8 @@ shows these notes when it offers the update.
   each video's menu marks it watched or not.
 - "Continue watching" on Home: each title you're part way through, the latest first, with the
   video you stopped or the next one up, played from where you left off.
+- "Coming up" on Home: each of your shows with an episode still to come, its next one and the day
+  it airs. On the day one airs, Kura tells you, once, unless you have it already.
 
 ### Changed
 - Long names on the shelf's cards wrap onto a second line rather than trail off.

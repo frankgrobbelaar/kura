@@ -845,6 +845,25 @@ export interface Continuing {
   following: NextVideo[];
 }
 
+/** A title's next episode, still to come, and how many more its list has after it. */
+export interface ComingEpisode {
+  titleId: number;
+  title: string;
+  kind: TitleKind;
+  hasPoster: boolean;
+  /** 0 for one of its specials. */
+  season: number;
+  number: number;
+  name: string | null;
+  /** The day it airs. */
+  aired: string;
+  /** Episodes listed after it. */
+  later: number;
+}
+
+/** Home's "Coming up": the soonest first. */
+export const useComing = () => useEngineQuery<ComingEpisode[]>("/coming");
+
 /** Home's "Continue watching": the latest played first. */
 export const useContinue = () => useEngineQuery<Continuing[]>("/continue");
 /** Marks videos watched or not: `{ path: "/files/watched", body: { files, watched } }`. */
