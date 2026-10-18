@@ -5,6 +5,7 @@ import { Breadcrumb, LIBRARY } from "@/components/breadcrumb";
 import { type Asking, ConfirmDelete, Deleted, DeleteIcon, useDeleting } from "@/components/delete";
 import { EngineProblem } from "@/components/engine-problem";
 import { Markdown } from "@/components/markdown";
+import { Panel } from "@/components/panel";
 import { Poster } from "@/components/poster";
 import { NoMatches, SearchField, useAddressSearch } from "@/components/search-field";
 import { HeaderSkeleton, Loading, PanelSkeleton } from "@/components/skeleton";
@@ -29,6 +30,7 @@ import { files, kindWord } from "@/lib/kinds";
 import { matches } from "@/lib/search";
 import { share } from "@/lib/share";
 import { cn } from "@/lib/utils";
+import { AboutPanel } from "./about-panel";
 
 /** One anime or film: how much of it is there, its seasons and episode map, what's missing, its
  * specials and OVAs apart, its videos, and the gap analysis next to it. */
@@ -133,6 +135,7 @@ export function TitlePage() {
       {deleted && <Deleted result={deleted} onPutBack={() => setDeleted(null)} />}
       {unfit > 0 && <Unfit count={unfit} />}
       <EngineProblem queries={[title]} />
+      {found.seasons.length === 0 && <AboutPanel title={found} />}
       {found.seasons.length > 0 && (
         <div className="flex flex-wrap items-start gap-5">
           <div className="flex min-w-0 flex-[1.4_1_460px] flex-col gap-5">
@@ -148,6 +151,7 @@ export function TitlePage() {
             <MissingAndBroken title={found} episodes={numbered} />
           </div>
           <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-5">
+            <AboutPanel title={found} />
             {specials.length > 0 && <Specials episodes={specials} />}
             <ReportPanel titleId={found.id} />
           </div>
@@ -976,37 +980,6 @@ function videoName(video: TitleFile): string {
   }
   const last = video.episodeEnd ? `-E${pad(video.episodeEnd)}` : "";
   return `S${pad(video.season)}E${pad(video.episode)}${last}`;
-}
-
-function Panel(props: {
-  id: string;
-  title: string;
-  note?: string;
-  icon?: ReactNode;
-  /** To scroll to it: it stops clear of the page's top, which stays put. */
-  at?: RefObject<HTMLElement | null>;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      ref={props.at}
-      aria-labelledby={props.id}
-      className="flex scroll-mt-14 animate-fade-up flex-col gap-3.5 rounded-22 border border-edge bg-glass p-5 shadow-panel"
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id={props.id} className="inline-flex items-center gap-2 font-extrabold text-16">
-          {props.icon && (
-            <span aria-hidden="true" className="text-accent-fg">
-              {props.icon}
-            </span>
-          )}
-          {props.title}
-        </h2>
-        {props.note && <span className="text-12 text-fg-muted">{props.note}</span>}
-      </div>
-      {props.children}
-    </section>
-  );
 }
 
 function seasonWord(season: SeasonCount, episodes: EpisodeState[]): string {

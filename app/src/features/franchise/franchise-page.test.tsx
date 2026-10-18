@@ -70,6 +70,9 @@ const CURSE_OF_THE_BLOOD_RUBIES: MissingTitle = {
   coming: false,
   airing: false,
   cover: null,
+  overview: null,
+  genres: [],
+  studio: null,
 };
 const KAI: MissingTitle = {
   ...CURSE_OF_THE_BLOOD_RUBIES,
@@ -156,7 +159,7 @@ describe("FranchisePage", () => {
       await screen.findByRole("heading", { name: "Dragon Ball", level: 1 }),
     ).toBeInTheDocument();
     expect(screen.getByText("Franchise")).toBeInTheDocument();
-    expect(screen.getByText("1986 · 2 series · 1 movie")).toBeInTheDocument();
+    expect(screen.getByText("1986 to 2013 · 2 series · 1 movie")).toBeInTheDocument();
     expect(screen.getByText("441 of 444 episodes")).toBeInTheDocument();
     expect(screen.getByText("3 titles · by type, oldest release first")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Series 2", level: 3 })).toBeInTheDocument();
@@ -285,6 +288,68 @@ describe("FranchisePage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "No title in Dragon Ball goes by “Cell”.",
     );
+  });
+
+  it("says what the franchise is about and the years it spans", async () => {
+    fakeEngine({
+      "/franchises/7": DRAGON_BALL_FRANCHISE,
+      "/titles/7/about": {
+        overview: "Goku sets out to find the seven Dragon Balls.",
+        genres: [],
+        studio: null,
+        status: "finished",
+        started: "1986-02-26",
+        ended: null,
+        minutes: null,
+        anilistId: 223,
+        tmdbType: "tv",
+        tmdbId: 12609,
+      },
+    });
+    renderWithEngine(<FranchisePage />, "/franchises/7");
+
+    const header = await screen.findByRole("region", { name: "Dragon Ball" });
+    expect(header).toHaveTextContent("1986 to 2013 · 2 series · 1 movie");
+    expect(await within(header).findByText(/Goku sets out to find/)).toBeVisible();
+  });
+
+  it("opens a title the library lacks to say what AniList knows of it", async () => {
+    fakeEngine({
+      "/franchises/7": DRAGON_BALL_FRANCHISE,
+      "/franchises/7/missing": {
+        titles: [
+          {
+            ...KAI,
+            overview: "A remastered retelling, closer to the manga.",
+            genres: ["Action", "Adventure"],
+            studio: "Toei Animation",
+          },
+        ],
+        looking: false,
+      },
+    });
+    renderWithEngine(<FranchisePage />, "/franchises/7?missing");
+
+    const card = await screen.findByRole("button", { name: "Dragon Ball Z Kai: not in library" });
+    // A long name wraps rather than trails off, and says itself in full on hover.
+    expect(within(card).getByText("Dragon Ball Z Kai")).toHaveClass("line-clamp-2");
+    card.click();
+
+    const sheet = await screen.findByRole("dialog", { name: "Dragon Ball Z Kai" });
+    expect(sheet).toHaveTextContent("TV series · 2009 · 97 episodes");
+    expect(sheet).toHaveTextContent("Not in your library");
+    expect(sheet).toHaveTextContent("StudioToei Animation");
+    expect(within(sheet).getByRole("list", { name: "Genres" })).toHaveTextContent(
+      "ActionAdventure",
+    );
+    expect(sheet).toHaveTextContent("A remastered retelling, closer to the manga.");
+    within(sheet).getByRole("button", { name: "On AniList" }).click();
+    await waitFor(() =>
+      expect(shell.invoke).toHaveBeenCalledWith("open_anilist_page", { id: 6033 }),
+    );
+
+    within(sheet).getByRole("button", { name: "Close" }).click();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
   it("opens with the titles it lacks put in, when a title's page leads here", async () => {

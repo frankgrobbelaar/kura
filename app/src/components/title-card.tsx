@@ -70,7 +70,9 @@ function Card(props: {
         )}
       </div>
       <span className="flex flex-col gap-px px-0.5">
-        <span className="truncate font-extrabold text-14">{props.name}</span>
+        <span title={props.name} className="line-clamp-2 font-extrabold text-14 leading-snug">
+          {props.name}
+        </span>
         <span className="truncate text-12 text-fg-muted">{props.children}</span>
         {done !== null && (
           <span className="text-12 text-fg-faint">

@@ -479,3 +479,17 @@ def test_offline_the_rest_of_a_franchise_waits_for_the_next_hour(
     asked = len(offline.asked)
     assert watcher.look_further() == 0  # the next look around, 15 seconds on
     assert len(offline.asked) == asked
+
+
+def test_a_films_facts_are_looked_up_again_weekly(
+    paths: DataPaths, conn: sqlite3.Connection, tmp_path: Path, clock: Clock
+):
+    credentials.save(paths, "tmdb", "a-test-key")
+    library(conn, tmp_path / "Anime", ["Movies/Cowboy Bebop - The Movie (2001).mkv"], minutes=115)
+    identify(paths, conn, internet())
+    web = internet()
+
+    later = Watcher(paths, Scans(), web, now=lambda: NOW + timedelta(days=8), clock=clock)
+
+    assert later.refresh() == 1
+    assert f"GET {TMDB}/movie/11299" in web.paths()

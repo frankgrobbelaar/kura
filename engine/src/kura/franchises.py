@@ -105,8 +105,9 @@ def save(conn: sqlite3.Connection, number: int, entry: Anime | None, now: dateti
     with conn:
         conn.execute(
             """INSERT OR REPLACE INTO anilist_entries
-               (id, name, names, format, status, started, episodes, cover, checked_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (id, name, names, format, status, started, episodes, cover, checked_at,
+                description, genres, studio, ended, minutes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 number,
                 entry.title if entry else None,
@@ -117,6 +118,13 @@ def save(conn: sqlite3.Connection, number: int, entry: Anime | None, now: dateti
                 entry.episodes if entry else None,
                 entry.cover if entry else None,
                 now.isoformat(),
+                entry.description if entry else None,
+                json.dumps(list(entry.genres), ensure_ascii=False)
+                if entry and entry.genres
+                else None,
+                entry.studio if entry else None,
+                entry.end.isoformat() if entry and entry.end else None,
+                entry.minutes if entry else None,
             ),
         )
         if entry is not None:
@@ -193,6 +201,9 @@ def _entry(row: sqlite3.Row) -> Entry | None:
         start=date.fromisoformat(row["started"]) if row["started"] else None,
         episodes=row["episodes"],
         cover=row["cover"],
+        description=row["description"],
+        genres=tuple(json.loads(row["genres"] or "[]")),
+        studio=row["studio"],
     )
 
 

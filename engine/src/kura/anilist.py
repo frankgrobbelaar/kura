@@ -10,14 +10,18 @@ from kura.web import Send, Service, WebError, send
 
 API = "https://graphql.anilist.co"
 
-# Everything Kura reads about an entry (see kura/core/catalog.py), asked for in one go.
+# Everything Kura reads about an entry (see kura/core/catalog.py), asked for in one go. A change
+# to it changes SHAPE, so answers kept from before aren't read for the new fields.
 _ENTRY = """
     id format episodes duration status
     startDate { year month day }
     endDate { year month day }
     title { romaji english native }
     synonyms
-    coverImage { large }
+    description(asHtml: false)
+    genres
+    studios(isMain: true) { nodes { name } }
+    coverImage { large extraLarge }
     bannerImage
     nextAiringEpisode { episode airingAt }
     relations {
@@ -32,6 +36,7 @@ _SEARCH = (
     f" Page(perPage: $count) {{ media(search: $search, type: ANIME) {{ {_ENTRY} }} }} }}"
 )
 _ONE = f"query ($id: Int) {{ Media(id: $id, type: ANIME) {{ {_ENTRY} }} }}"
+SHAPE = 2  # which _ENTRY the answers kept were asked with
 
 
 class AniList:
@@ -44,7 +49,7 @@ class AniList:
     def search(self, text: str, count: int = 8) -> list[Anime]:
         """Entries whose names fit `text`, best first, as AniList ranks them. An answer is kept
         for a week, so a rescan doesn't ask again."""
-        key = f"anilist search {count} {text.casefold()}"
+        key = f"anilist search {SHAPE} {count} {text.casefold()}"
         answer = self._cache.get(key, 7 * DAY) if self._cache else None
         if answer is None:
             variables = {"search": text, "count": count}
@@ -58,7 +63,7 @@ class AniList:
     def entry(self, anime_id: int, *, fresh: bool = False) -> Anime | None:
         """One entry by its AniList number, or None when AniList has no such entry. An answer
         is kept for a week; `fresh` asks again anyway (how far a show still airing has got)."""
-        key = f"anilist entry {anime_id}"
+        key = f"anilist entry {SHAPE} {anime_id}"
         answer = self._cache.get(key, 7 * DAY) if self._cache and not fresh else None
         if answer is None:
             payload = {"query": _ONE, "variables": {"id": anime_id}}

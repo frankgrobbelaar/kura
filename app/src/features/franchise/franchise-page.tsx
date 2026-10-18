@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
+import { ElsewhereLinks, Facts, Genres, Synopsis, statusWords } from "@/components/about";
 import { Breadcrumb, LIBRARY } from "@/components/breadcrumb";
 import { EngineProblem } from "@/components/engine-problem";
 import { Poster } from "@/components/poster";
@@ -9,6 +10,7 @@ import { SortControl } from "@/components/sort-control";
 import { StatusShape } from "@/components/status";
 import { TitleCard } from "@/components/title-card";
 import { byKind, CardGrid, groupsByType, orderWords, together } from "@/components/title-groups";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   type FranchiseSummary,
   type MissingTitle,
@@ -18,6 +20,7 @@ import {
   useCover,
   useFranchise,
   useFranchiseMissing,
+  useTitleAbout,
 } from "@/lib/engine";
 import { kindCount, kindWord } from "@/lib/kinds";
 import { matches } from "@/lib/search";
@@ -52,6 +55,8 @@ export function FranchisePage() {
     );
   const franchise = useFranchise(Number(id), sort);
   const missing = useFranchiseMissing(Number(id));
+  // A title the library lacks, opened to say what AniList knows of it.
+  const [opened, setOpened] = useState<MissingTitle | null>(null);
 
   if (!franchise.data) {
     return (
@@ -90,6 +95,7 @@ export function FranchisePage() {
     <>
       <Breadcrumb trail={[LIBRARY]} current={found.name} />
       <Header franchise={found} />
+      <MissingSheet title={opened} franchise={found.name} onClose={() => setOpened(null)} />
       <EngineProblem queries={[franchise]} />
       <section
         aria-labelledby="franchise-titles"
@@ -142,7 +148,7 @@ export function FranchisePage() {
               "title" in item ? (
                 <TitleCard title={item.title} />
               ) : (
-                <MissingCard title={item.missing} />
+                <MissingCard title={item.missing} onOpen={() => setOpened(item.missing)} />
               )
             }
           />
@@ -179,6 +185,60 @@ function byRelease(a: Shelved, b: Shelved): number {
   return a.released < b.released ? -1 : 1;
 }
 
+/** What AniList knows of a title the library has no part of: its cover and what it is, its
+ * synopsis, and its page there. */
+function MissingSheet(props: {
+  title: MissingTitle | null;
+  franchise: string;
+  onClose: () => void;
+}) {
+  const { title } = props;
+  const cover = useCover(title?.cover ?? null);
+  return (
+    <Sheet open={title !== null} onOpenChange={(open) => !open && props.onClose()}>
+      {title && (
+        <SheetContent title={title.name} description={missingFacts(title)}>
+          <div className="flex items-start gap-4">
+            <div className="relative aspect-[2/3] w-24 shrink-0 overflow-hidden rounded-14 border-2 border-missing border-dotted">
+              {cover && (
+                <img src={cover} alt="" className="absolute inset-0 size-full object-cover" />
+              )}
+            </div>
+            <div className="flex min-w-0 flex-col gap-3">
+              <span className="inline-flex h-6 items-center gap-1.5 self-start rounded-full bg-tint/6 px-2.25 font-bold text-11">
+                <StatusShape state={title.coming ? "upcoming" : "missing"} className="size-2" />
+                {title.coming ? "Coming" : "Not in your library"}
+              </span>
+              <Facts
+                facts={[
+                  ["Studio", title.studio],
+                  ["Status", statusWords(standing(title), title.kind)],
+                ]}
+              />
+              <Genres genres={title.genres} />
+            </div>
+          </div>
+          {title.overview ? (
+            <Synopsis text={title.overview} lines={6} />
+          ) : (
+            <p className="text-13 text-fg-muted">AniList has no synopsis of it yet.</p>
+          )}
+          <p className="text-13 text-fg-muted">
+            AniList ties it to {props.franchise} by story. It's here so you know the franchise has
+            it.
+          </p>
+          <ElsewhereLinks anilistId={title.anilistId} />
+        </SheetContent>
+      )}
+    </Sheet>
+  );
+}
+
+/** Where a title the library lacks stands, when its tag doesn't say it already ("Coming"). */
+function standing(title: MissingTitle) {
+  return title.airing && !title.coming ? ("airing" as const) : null;
+}
+
 /** Puts the titles the library has no part of among the franchise's, or takes them away. */
 function MissingToggle(props: {
   on: boolean;
@@ -208,11 +268,16 @@ function MissingToggle(props: {
 
 /** A title the library has no part of: a place kept for it, its outline dotted, AniList's cover
  * dimmed in it, with a hollow "Not in library" (a fainter "Coming" for one not out yet). Kura
- * has no page for it, so it leads nowhere. */
-function MissingCard({ title }: { title: MissingTitle }) {
+ * has no page for it: it opens to say what AniList knows of it. */
+function MissingCard({ title, onOpen }: { title: MissingTitle; onOpen: () => void }) {
   const cover = useCover(title.cover);
   return (
-    <div className="flex flex-col gap-2.5">
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${title.name}: ${title.coming ? "coming" : "not in library"}`}
+      className="lift flex w-full cursor-pointer flex-col gap-2.5 rounded-16 text-left focus-visible:outline-2"
+    >
       <div
         className={cn(
           "relative aspect-[2/3] overflow-hidden rounded-14 border-2 border-dotted",
@@ -233,10 +298,15 @@ function MissingCard({ title }: { title: MissingTitle }) {
         </span>
       </div>
       <span className="flex flex-col gap-px px-0.5">
-        <span className="truncate font-extrabold text-14 text-fg-muted">{title.name}</span>
+        <span
+          title={title.name}
+          className="line-clamp-2 font-extrabold text-14 text-fg-muted leading-snug"
+        >
+          {title.name}
+        </span>
         <span className="truncate text-12 text-fg-faint">{missingFacts(title)}</span>
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -253,12 +323,24 @@ function missingFacts(title: MissingTitle): string {
 
 const KINDS: TitleKind[] = ["series", "movie", "ova", "special"];
 
+/** The years a franchise spans, by its titles' releases: "1986 to 2024", or one year. */
+function years(franchise: FranchiseSummary): string | null {
+  const dated = franchise.titles.flatMap((title) => (title.year ? [title.year] : []));
+  if (dated.length === 0) return null;
+  const first = Math.min(...dated);
+  const last = Math.max(...dated);
+  return first === last ? String(first) : `${first} to ${last}`;
+}
+
+/** A franchise's poster, name, the years it spans and what it holds, its lead's synopsis, and
+ * how much of it is there. */
 function Header({ franchise }: { franchise: FranchiseSummary }) {
   const lead = franchise.titles.find((title) => title.id === franchise.id) ?? franchise.titles[0];
+  const about = useTitleAbout(lead?.id ?? 0, lead !== undefined).data;
   const kinds = KINDS.filter((kind) => franchise.kinds[kind] > 0).map((kind) =>
     kindCount(kind, franchise.kinds[kind]),
   );
-  const facts = [franchise.released?.slice(0, 4), ...kinds].filter(Boolean);
+  const facts = [years(franchise), ...kinds].filter(Boolean);
 
   return (
     <section
@@ -278,6 +360,11 @@ function Header({ franchise }: { franchise: FranchiseSummary }) {
         </div>
         <h1 className="type-title">{franchise.name}</h1>
         <span className="text-14 text-fg-muted">{facts.join(" · ")}</span>
+        {about?.overview && (
+          <div className="max-w-[72ch] pt-1">
+            <Synopsis text={about.overview} />
+          </div>
+        )}
       </div>
       {franchise.aired > 0 && (
         <div className="flex flex-col items-center gap-1">

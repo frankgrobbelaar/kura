@@ -6,6 +6,8 @@ specials connect); TMDB knows the shape Plex shows (seasons, episode titles, air
 the artwork.
 """
 
+import html
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
@@ -34,6 +36,11 @@ _KINDS = {
     "SPECIAL": TitleKind.SPECIAL,
     "MUSIC": TitleKind.SPECIAL,
 }
+
+
+# Where a title stands, in Kura's words: its episodes are all out, more are coming, none is out
+# yet, it was stopped, or it's resting before it goes on.
+type Status = Literal["finished", "airing", "coming", "cancelled", "paused"]
 
 
 @dataclass(frozen=True)
@@ -66,10 +73,19 @@ class Anime:
     banner: str | None = None  # the wide banner's web address: a background behind the poster
     format: str | None = None  # AniList's own word: TV, MOVIE, OVA, SPECIAL, ONA, MUSIC, …
     status: str | None = None  # FINISHED, RELEASING, NOT_YET_RELEASED, CANCELLED or HIATUS
+    description: str | None = None  # its synopsis, as plain text (no markup, no spoilers)
+    genres: tuple[str, ...] = ()
+    studio: str | None = None  # its main animation studio
+    cover_big: str | None = None  # the cover's largest size, for a poster to choose
 
     @property
     def year(self) -> int | None:
         return self.start.year if self.start else None
+
+    @property
+    def standing(self) -> Status | None:
+        """Where it stands, in Kura's words."""
+        return _ANILIST_STATUS.get(self.status or "")
 
 
 @dataclass(frozen=True)
@@ -97,6 +113,7 @@ class Episode:
     title: str | None
     aired: date | None
     minutes: int | None
+    overview: str | None = None  # what happens in it
 
 
 @dataclass(frozen=True)
@@ -111,6 +128,12 @@ class Show:
     poster: str | None  # a path on TMDB's image server
     episodes: tuple[Episode, ...]  # in season order, then episode order
     backdrop: str | None = None  # the wide background picture's path on TMDB's image server
+    overview: str | None = None  # its synopsis
+    genres: tuple[str, ...] = ()
+    studio: str | None = None  # the first company TMDB names for it
+    status: Status | None = None
+    last_aired: date | None = None
+    minutes: int | None = None  # an episode's usual length
 
     @property
     def year(self) -> int | None:
@@ -134,6 +157,10 @@ class Film:
     minutes: int | None
     poster: str | None
     backdrop: str | None = None  # the wide background picture's path on TMDB's image server
+    overview: str | None = None  # its synopsis
+    genres: tuple[str, ...] = ()
+    studio: str | None = None  # the first company TMDB names for it
+    status: Status | None = None
 
     @property
     def year(self) -> int | None:
@@ -158,6 +185,8 @@ def anime(media: Json) -> Anime | None:
         return None
     status = fields.text(media, "status")
     upcoming = fields.mapping(media, "nextAiringEpisode")
+    covers = fields.mapping(media, "coverImage")
+    studios = fields.mappings(fields.mapping(media, "studios"), "nodes")
     return Anime(
         id=number,
         title=english or romaji or titles[0],
@@ -169,11 +198,15 @@ def anime(media: Json) -> Anime | None:
         end=_fuzzy_date(fields.mapping(media, "endDate")),
         airing=status in ("RELEASING", "NOT_YET_RELEASED"),
         next_episode=fields.whole(upcoming, "episode"),
-        cover=fields.text(fields.mapping(media, "coverImage"), "large"),
+        cover=fields.text(covers, "large"),
         related=tuple(_related(fields.mapping(media, "relations"))),
         banner=fields.text(media, "bannerImage"),
         format=fields.text(media, "format"),
         status=status,
+        description=plain_text(fields.text(media, "description")),
+        genres=_distinct([*fields.texts(media, "genres")]),
+        studio=next((name for node in studios if (name := fields.text(node, "name"))), None),
+        cover_big=fields.text(covers, "extraLarge"),
     )
 
 
@@ -222,15 +255,23 @@ def show(details: Json) -> Show | None:
             episodes.extend(_episodes(fields.mapping(details, key)))
     episodes.sort(key=lambda episode: (episode.season, episode.number))
     status = fields.text(details, "status")
+    airing = bool(details.get("in_production")) or status in _AIRING
+    lengths = fields.numbers(details, "episode_run_time")
     return Show(
         id=number,
         title=title,
         original_title=fields.text(details, "original_name") or title,
         first_aired=fields.day(fields.text(details, "first_air_date")),
-        airing=bool(details.get("in_production")) or status in _AIRING,
+        airing=airing,
         poster=fields.text(details, "poster_path"),
         episodes=tuple(episodes),
         backdrop=fields.text(details, "backdrop_path"),
+        overview=fields.text(details, "overview") or None,
+        genres=_genres(details),
+        studio=_company(details),
+        status=_TMDB_STATUS.get(status or "") or ("airing" if airing else None),
+        last_aired=fields.day(fields.text(details, "last_air_date")),
+        minutes=lengths[0] if lengths and lengths[0] > 0 else None,
     )
 
 
@@ -254,11 +295,65 @@ def film(details: Json) -> Film | None:
         minutes=fields.whole(details, "runtime") or None,
         poster=fields.text(details, "poster_path"),
         backdrop=fields.text(details, "backdrop_path"),
+        overview=fields.text(details, "overview") or None,
+        genres=_genres(details),
+        studio=_company(details),
+        status=_TMDB_STATUS.get(fields.text(details, "status") or ""),
     )
+
+
+def plain_text(description: str | None) -> str | None:
+    """AniList's synopsis as plain text: its line breaks kept, its markup and spoilers taken out
+    ("~!who dies!~"), and the note of where it came from ("(Source: Crunchyroll)") left off."""
+    if not description:
+        return None
+    text = _SPOILER.sub("", description)
+    text = _BREAK.sub("\n", text)
+    text = html.unescape(_TAG.sub("", text))
+    text = _EMPHASIS.sub(r"\2", text)
+    text = _SOURCE.sub("", text.strip())
+    paragraphs = [" ".join(part.split()) for part in _PARAGRAPH.split(text)]
+    return "\n\n".join(part for part in paragraphs if part) or None
 
 
 _ANIMATION = 16  # TMDB's genre number for animation
 _AIRING = frozenset({"Returning Series", "In Production", "Planned", "Pilot"})
+_TMDB_STATUS: dict[str, Status] = {
+    "Returning Series": "airing",
+    "In Production": "airing",
+    "Planned": "coming",
+    "Pilot": "coming",
+    "Post Production": "coming",
+    "Rumored": "coming",
+    "Ended": "finished",
+    "Released": "finished",
+    "Canceled": "cancelled",
+}
+_ANILIST_STATUS: dict[str, Status] = {
+    "FINISHED": "finished",
+    "RELEASING": "airing",
+    "NOT_YET_RELEASED": "coming",
+    "CANCELLED": "cancelled",
+    "HIATUS": "paused",
+}
+_SPOILER = re.compile(r"~!.*?!~", re.DOTALL)
+_BREAK = re.compile(r"<br\s*/?>", re.IGNORECASE)
+_TAG = re.compile(r"<[^>]*>")
+_EMPHASIS = re.compile(r"(__|\*\*)(.+?)\1", re.DOTALL)
+_SOURCE = re.compile(r"\s*[(\[]\s*(?:source|written by|from)\b[^)\]]*[)\]]\s*$", re.IGNORECASE)
+_PARAGRAPH = re.compile(r"\n\s*\n|\n")
+
+
+def _genres(details: Json) -> tuple[str, ...]:
+    """TMDB's genres, by name; animation goes without saying."""
+    names = [fields.text(genre, "name") for genre in fields.mappings(details, "genres")]
+    return _distinct([name for name in names if name and name != "Animation"])
+
+
+def _company(details: Json) -> str | None:
+    """The first company TMDB names as making a show or film."""
+    companies = fields.mappings(details, "production_companies")
+    return next((name for item in companies if (name := fields.text(item, "name"))), None)
 
 
 def _episodes(season: Json) -> list[Episode]:
@@ -275,6 +370,7 @@ def _episodes(season: Json) -> list[Episode]:
                 title=fields.text(item, "name") or None,
                 aired=fields.day(fields.text(item, "air_date")),
                 minutes=fields.whole(item, "runtime") or None,
+                overview=fields.text(item, "overview") or None,
             )
         )
     return found

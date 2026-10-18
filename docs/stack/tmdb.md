@@ -44,7 +44,13 @@ Kura works without a key: it still identifies each anime with AniList, without e
 | `https://image.tmdb.org/t/p/w342{poster_path}` | A poster |
 
 [kura/core/catalog.py](../../engine/src/kura/core/catalog.py) turns the answers into plain
-values (`Show`, `Episode`, `Film`, `Hit`).
+values (`Show`, `Episode`, `Film`, `Hit`). Besides the episode list, a show's and a film's
+answers carry what a title's About panel shows, which Kura keeps on the title's row: its
+synopsis (`overview`), genres (animation goes without saying), the first of its
+`production_companies`, its status in Kura's words (finished, airing, coming, cancelled), its
+`last_air_date` and its `episode_run_time` (a film's `runtime`), and each episode's own
+`overview`, which an episode's details show. Films are looked up again weekly, as finished
+shows' lists are, so what's kept of them stays current too.
 
 ## When AniList can't find a name
 

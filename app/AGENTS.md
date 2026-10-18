@@ -26,6 +26,12 @@ and [../CLAUDE.md](../CLAUDE.md).
   `page-top`, so it stays put while the rest scrolls under it.
 - Say what a thing does, never which media server reads it: no "Plex" anywhere in the UI.
 - Markdown (Kura's reports) shows through `components/markdown.tsx`, as a reader sees it.
+- More about one thing, a title the library lacks say, opens in a side sheet
+  (`components/ui/sheet.tsx`): from the window's right, below the title bar, the page dimming
+  behind it, closed by Escape, its cross or a click beside it. A synopsis, genres, facts and
+  "On AniList" / "On TMDB" come from `components/about.tsx`; the shell opens those pages by
+  number (`lib/links.ts`), as the window can't open addresses itself. Panels with a heading are
+  `components/panel.tsx`.
 - Lists of titles group them by type, series, movies, OVAs then specials (`KIND_ORDER` in
   `lib/kinds.ts`), through `components/title-groups.tsx`, except in the orders that look across
   types ("Recently added", "Most missing").

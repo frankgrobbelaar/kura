@@ -40,6 +40,8 @@ fn main() {
             updater::install_update,
             links::open_downloads_page,
             links::open_tmdb_api_page,
+            links::open_anilist_page,
+            links::open_tmdb_page,
             dialogs::pick_folder,
             dialogs::pick_export,
             explorer::open_folder,

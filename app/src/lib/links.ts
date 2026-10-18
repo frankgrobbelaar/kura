@@ -12,3 +12,13 @@ export function openDownloadsPage() {
 export function openTmdbApiPage() {
   return invoke<void>("open_tmdb_api_page");
 }
+
+/** Opens an anime's page on AniList, by its number there. */
+export function openAniListPage(id: number) {
+  return invoke<void>("open_anilist_page", { id });
+}
+
+/** Opens a show's or a film's page on TMDB, by its number there. */
+export function openTmdbPage(kind: "tv" | "movie", id: number) {
+  return invoke<void>("open_tmdb_page", { kind, id });
+}

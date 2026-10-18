@@ -248,3 +248,28 @@ def test_earlier_tidy_ups_stop_naming_a_media_server(tmp_path: Path):
 
         assert conn.execute("SELECT title FROM plans").fetchone()[0] == "Renamed 3 Trigun files"
         assert conn.execute("SELECT reason FROM changes").fetchone()[0] == "Named and filed"
+
+
+def test_every_title_and_entry_is_asked_about_again_for_what_its_about_panel_shows(
+    tmp_path: Path,
+):
+    with closing(db.connect(tmp_path / "kura.db")) as conn:
+        conn.executescript("".join(f"BEGIN;{sql}COMMIT;" for sql in MIGRATIONS[:22]))
+        conn.execute("PRAGMA user_version = 22")
+        conn.execute(
+            """INSERT INTO titles (id, kind, name, checked_at)
+               VALUES (1, 'series', 'Starfall Academy', '2026-10-17T09:00:00+00:00'),
+                      (2, 'series', 'Moonlit Harbour', NULL)"""
+        )
+        conn.execute(
+            """INSERT INTO anilist_entries (id, name, checked_at)
+               VALUES (9, 'Starfall Academy', '2026-10-17T09:00:00+00:00')"""
+        )
+        conn.commit()
+
+        db.migrate(conn)
+
+        titles = conn.execute("SELECT checked_at, overview FROM titles ORDER BY id").fetchall()
+        assert [tuple(row) for row in titles] == [("2000-01-01T00:00:00+00:00", None), (None, None)]
+        entry = conn.execute("SELECT checked_at, description FROM anilist_entries").fetchone()
+        assert tuple(entry) == ("2000-01-01T00:00:00+00:00", None)

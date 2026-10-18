@@ -27,7 +27,22 @@ function episodes(season: number, size: number, state: (n: number) => EpisodeSta
   }));
 }
 
+/** What the About panel says of a title Kura hasn't looked up yet. */
+const UNKNOWN: TitleDetail["about"] = {
+  overview: null,
+  genres: [],
+  studio: null,
+  status: null,
+  started: null,
+  ended: null,
+  minutes: null,
+  anilistId: null,
+  tmdbType: null,
+  tmdbId: null,
+};
+
 const DBZ: TitleDetail = {
+  about: UNKNOWN,
   id: 1,
   kind: "series",
   name: "Dragon Ball Z",
@@ -692,6 +707,58 @@ describe("TitlePage", () => {
       // @ts-expect-error: jsdom has none of its own
       delete Element.prototype.scrollIntoView;
     }
+  });
+
+  it("says what the title is about, and opens its pages on AniList and TMDB", async () => {
+    renderTitle({
+      ...DBZ,
+      about: {
+        overview: "Five years after winning the tournament, Goku lives a peaceful life.",
+        genres: ["Action", "Martial Arts"],
+        studio: "Toei Animation",
+        status: "finished",
+        started: "1989-04-26",
+        ended: "1996-01-31",
+        minutes: 24,
+        anilistId: 813,
+        tmdbType: "tv",
+        tmdbId: 12971,
+      },
+    });
+
+    const about = await screen.findByRole("region", { name: "About" });
+    expect(about).toHaveTextContent("Five years after winning the tournament");
+    expect(within(about).getByRole("list", { name: "Genres" })).toHaveTextContent(
+      "ActionMartial Arts",
+    );
+    expect(about).toHaveTextContent("StudioToei Animation");
+    expect(about).toHaveTextContent("AiredApr 1989 to Jan 1996");
+    expect(about).toHaveTextContent("StatusFinished");
+    expect(about).toHaveTextContent("Length24 min an episode");
+
+    within(about).getByRole("button", { name: "On AniList" }).click();
+    within(about).getByRole("button", { name: "On TMDB" }).click();
+    await waitFor(() =>
+      expect(shell.invoke).toHaveBeenCalledWith("open_anilist_page", { id: 813 }),
+    );
+    expect(shell.invoke).toHaveBeenCalledWith("open_tmdb_page", { kind: "tv", id: 12971 });
+  });
+
+  it("says when there's no synopsis yet, and a film's length and release", async () => {
+    renderTitle({
+      ...DBZ,
+      kind: "movie",
+      seasons: [],
+      episodes: [],
+      about: { ...UNKNOWN, started: "2013-03-30", minutes: 105, status: "finished" },
+    });
+
+    const about = await screen.findByRole("region", { name: "About" });
+    expect(about).toHaveTextContent("No synopsis yet.");
+    expect(about).toHaveTextContent("Released30 Mar 2013");
+    expect(about).toHaveTextContent("StatusOut");
+    expect(about).toHaveTextContent("Length1 h 45 min");
+    expect(within(about).queryByRole("button", { name: "On AniList" })).not.toBeInTheDocument();
   });
 
   it("shows a season's videos from its name in Seasons", async () => {

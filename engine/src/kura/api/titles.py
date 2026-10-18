@@ -135,6 +135,24 @@ class MissingTitle(ApiModel):
     coming: bool  # not out yet
     airing: bool  # out, with more of it still to come
     cover: str | None  # AniList's cover address (shown through /artwork)
+    overview: str | None  # its synopsis, as plain text
+    genres: list[str]
+    studio: str | None  # its main animation studio
+
+
+class TitleAbout(ApiModel):
+    """What a title's About panel says (kura/core/about.py), and where to read more of it."""
+
+    overview: str | None
+    genres: list[str]
+    studio: str | None
+    status: Literal["finished", "airing", "coming", "cancelled", "paused"] | None
+    started: str | None  # its first episode, or the film's release
+    ended: str | None  # its latest episode so far; None for a film, or while unknown
+    minutes: int | None  # an episode's usual length, or the film's
+    anilist_id: int | None  # its page on AniList
+    tmdb_type: Literal["tv", "movie"] | None  # and on TMDB
+    tmdb_id: int | None
 
 
 class FranchiseMissing(ApiModel):
@@ -152,6 +170,7 @@ class TitleDetail(TitleSummary):
     upcoming_episodes: list[EpisodeRef]
     episodes: list[EpisodeState]  # every episode with its state, specials included
     videos: list[TitleFile]
+    about: TitleAbout
 
 
 Sort = Annotated[Order, Query(description="released (the default), name, added or missing")]
@@ -248,6 +267,33 @@ def one_title(title_id: int, conn: Database) -> TitleDetail:
         missing_specials=[_episode(e) for e in (gaps.specials_missing if gaps else ())],
         upcoming_episodes=[_episode(e) for e in (gaps.upcoming if gaps else ())],
         videos=[_video(row, subtitled[Path(row["path"])]) for row in videos],
+        about=_about(conn, found),
+    )
+
+
+@router.get("/titles/{title_id}/about")
+def title_about(title_id: int, conn: Database) -> TitleAbout:
+    """A title's About panel alone: a franchise's page shows its lead's."""
+    found = titles.title(conn, title_id, _today())
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Kura has no such title.")
+    return _about(conn, found)
+
+
+def _about(conn: Database, found: Title) -> TitleAbout:
+    said = titles.about(conn, found.id)
+    media, _, number = (found.tmdb or "").partition("/")
+    return TitleAbout(
+        overview=said.overview if said else None,
+        genres=list(said.genres) if said else [],
+        studio=said.studio if said else None,
+        status=said.status if said else None,
+        started=said.started.isoformat() if said and said.started else None,
+        ended=said.ended.isoformat() if said and said.ended else None,
+        minutes=said.minutes if said else None,
+        anilist_id=found.anilist_id,
+        tmdb_type="tv" if media == "tv" else "movie" if media == "movie" else None,
+        tmdb_id=int(number) if number.isdigit() else None,
     )
 
 
@@ -371,6 +417,9 @@ def _missing(entry: Entry, kind: TitleKind) -> MissingTitle:
         coming=entry.coming,
         airing=entry.airing,
         cover=entry.cover if artwork.poster_address(entry.cover) else None,
+        overview=entry.description,
+        genres=list(entry.genres),
+        studio=entry.studio,
     )
 
 

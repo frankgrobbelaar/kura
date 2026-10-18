@@ -330,4 +330,25 @@ MIGRATIONS: Final[tuple[str, ...]] = (
           AND j.state = 'done' AND j.problem IS NULL
         ORDER BY j.finished_at DESC, j.id DESC LIMIT 1);
     """,
+    # 23. What TMDB and AniList say of each title and episode, for a title's About panel and an
+    #     episode's details: its synopsis, genres, studio, where it stands, when it last aired
+    #     and how long an episode lasts. Every title's list, and every AniList entry, is asked
+    #     for again soon, so what's known fills in.
+    """
+    ALTER TABLE titles ADD COLUMN overview TEXT;   -- its synopsis
+    ALTER TABLE titles ADD COLUMN genres TEXT;     -- JSON: its genres, as TMDB names them
+    ALTER TABLE titles ADD COLUMN studio TEXT;     -- the first company TMDB names for it
+    ALTER TABLE titles ADD COLUMN status TEXT
+        CHECK (status IN ('finished', 'airing', 'coming', 'cancelled', 'paused'));
+    ALTER TABLE titles ADD COLUMN ended TEXT;      -- its latest episode so far
+    ALTER TABLE titles ADD COLUMN minutes INTEGER; -- an episode's usual length, or the film's
+    ALTER TABLE episodes ADD COLUMN overview TEXT; -- what happens in it
+    ALTER TABLE anilist_entries ADD COLUMN description TEXT;  -- its synopsis, as plain text
+    ALTER TABLE anilist_entries ADD COLUMN genres TEXT;       -- JSON
+    ALTER TABLE anilist_entries ADD COLUMN studio TEXT;       -- its main animation studio
+    ALTER TABLE anilist_entries ADD COLUMN ended TEXT;
+    ALTER TABLE anilist_entries ADD COLUMN minutes INTEGER;
+    UPDATE titles SET checked_at = '2000-01-01T00:00:00+00:00' WHERE checked_at IS NOT NULL;
+    UPDATE anilist_entries SET checked_at = '2000-01-01T00:00:00+00:00';
+    """,
 )

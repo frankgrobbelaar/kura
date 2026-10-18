@@ -319,3 +319,49 @@ def test_a_franchise_says_what_the_library_has_no_part_of(
     ]
     assert found["titles"][0]["cover"].startswith("https://s4.anilist.co/")
     assert client.get("/franchises/999/missing").status_code == 404
+
+
+def test_a_title_says_what_its_about_panel_shows(
+    client: TestClient, identified: sqlite3.Connection
+):
+    [dbz_id] = [t["id"] for t in client.get("/titles").json() if t["name"] == "Dragon Ball Z"]
+
+    about = client.get(f"/titles/{dbz_id}").json()["about"]
+
+    assert about["overview"].startswith("Five years after winning")
+    assert about["genres"] == ["Action & Adventure", "Sci-Fi & Fantasy"]
+    assert (about["studio"], about["status"], about["minutes"]) == (
+        "Toei Animation",
+        "finished",
+        24,
+    )
+    assert (about["started"], about["ended"]) == ("1989-04-26", "1996-01-31")
+    assert (about["anilistId"], about["tmdbType"], about["tmdbId"]) == (813, "tv", 12971)
+    assert client.get(f"/titles/{dbz_id}/about").json() == about
+    assert client.get("/titles/999/about").status_code == 404
+
+
+def test_anilists_genres_and_studio_come_first_once_kura_has_asked(
+    client: TestClient, identified: sqlite3.Connection
+):
+    [dbz_id] = [t["id"] for t in client.get("/titles").json() if t["name"] == "Dragon Ball Z"]
+    with identified:
+        identified.execute(
+            """INSERT INTO anilist_entries (id, name, genres, studio, description, checked_at)
+               VALUES (813, 'Dragon Ball Z', '["Action", "Martial Arts"]', 'Toei Animation',
+                       'Goku and his friends defend the Earth.', '2026-10-17T09:00:00+00:00')"""
+        )
+
+    about = client.get(f"/titles/{dbz_id}/about").json()
+
+    assert about["genres"] == ["Action", "Martial Arts"]
+    assert about["overview"].startswith("Five years after winning")  # TMDB's, written for us
+
+
+def test_a_film_has_no_end_and_its_own_length(client: TestClient, identified: sqlite3.Connection):
+    [film] = [t for t in client.get("/titles").json() if t["kind"] == "movie"]
+
+    about = client.get(f"/titles/{film['id']}/about").json()
+
+    assert (about["started"], about["ended"], about["minutes"]) == ("2001-09-01", None, 115)
+    assert (about["tmdbType"], about["tmdbId"]) == ("movie", 11299)

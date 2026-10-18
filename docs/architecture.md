@@ -337,6 +337,13 @@ are laid over straight from the file, and a subtitle file beside the video is us
 stream that ends early says why (the drive went, the file went, the file is damaged there), and
 the copies of the last six videos' subtitles stay. See [stack/ffmpeg.md](stack/ffmpeg.md).
 
+A title's About panel (`kura/core/about.py`, `titles.about`, in `GET /titles/{id}` and alone
+at `GET /titles/{id}/about`) puts together what TMDB says of it, kept on its row, and what
+AniList says of its entry, kept in `anilist_entries` by the franchise look-ups: TMDB's synopsis
+first, written for English readers and as current as the episode list, and AniList's genres
+and main studio first, anime's own words for them; either fills in what the other doesn't say.
+A title the library lacks shows AniList's alone, on a franchise's page.
+
 The title bar's search (`kura/search.py`, `GET /search?q=`) finds the library's anime by any
 name AniList says they go by, their episodes by code or name (the ones the library lacks too),
 and its videos by their files' names. Every word typed must be there, however a name is written:

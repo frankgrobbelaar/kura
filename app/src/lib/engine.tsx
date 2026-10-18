@@ -698,7 +698,35 @@ export interface TitleDetail extends TitleSummary {
   upcomingEpisodes: EpisodeRef[];
   episodes: EpisodeState[];
   videos: TitleFile[];
+  about: TitleAbout;
 }
+
+/** Where a title stands: its episodes are all out, more are coming, none is out yet, it was
+ * stopped, or it's resting before it goes on. */
+export type TitleStatus = "finished" | "airing" | "coming" | "cancelled" | "paused";
+
+/** What a title's About panel says, from TMDB and AniList together, and where to read more. */
+export interface TitleAbout {
+  overview: string | null;
+  genres: string[];
+  studio: string | null;
+  status: TitleStatus | null;
+  /** Its first episode, or the film's release (ISO date). */
+  started: string | null;
+  /** Its latest episode so far; null for a film, or while unknown. */
+  ended: string | null;
+  /** An episode's usual length, or the film's. */
+  minutes: number | null;
+  /** Its page on AniList. */
+  anilistId: number | null;
+  /** And on TMDB. */
+  tmdbType: "tv" | "movie" | null;
+  tmdbId: number | null;
+}
+
+/** A title's About panel alone: a franchise's page shows its lead's. */
+export const useTitleAbout = (id: number, enabled = true) =>
+  useEngineQuery<TitleAbout>(`/titles/${id}/about`, undefined, enabled);
 
 /** The gap analysis Kura wrote next to a title. */
 export interface Report {
@@ -824,6 +852,11 @@ export interface MissingTitle {
   airing: boolean;
   /** AniList's cover address (shown through the engine, `useCover`). */
   cover: string | null;
+  /** Its synopsis, as plain text. */
+  overview: string | null;
+  genres: string[];
+  /** Its main animation studio. */
+  studio: string | null;
 }
 
 /** What AniList ties to a franchise that the library has no part of. */

@@ -5,11 +5,13 @@ release date and files, and for a series, its seasons and what's missing (kura/c
 import json
 import sqlite3
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Literal
 
-from kura.core.catalog import Episode, Show, TitleKind
+from kura.core.about import About, Said
+from kura.core.about import about as about_from
+from kura.core.catalog import Episode, Show, Status, TitleKind
 from kura.core.franchise import Link, own_links
 from kura.core.franchise import franchises as group_franchises
 from kura.core.gaps import Gaps, find_gaps
@@ -255,6 +257,58 @@ def _title(conn: sqlite3.Connection, row: sqlite3.Row, today: date) -> Title:
         files=row["files"],
         added=row["added"],
         gaps=find_gaps(show, held(conn, row["id"]), today) if show else None,
+    )
+
+
+def about(conn: sqlite3.Connection, title_id: int) -> About | None:
+    """A title's About panel (kura/core/about.py): what its own row says, and what AniList says
+    of its entry once Kura has asked. None for a title Kura doesn't have."""
+    row = conn.execute("SELECT * FROM titles WHERE id = ?", (title_id,)).fetchone()
+    if row is None:
+        return None
+    entry = (
+        conn.execute("SELECT * FROM anilist_entries WHERE id = ?", (row["anilist_id"],)).fetchone()
+        if row["anilist_id"] is not None
+        else None
+    )
+    minutes = [
+        each["minutes"]
+        for each in conn.execute(
+            "SELECT minutes FROM episodes WHERE title_id = ? AND season > 0", (title_id,)
+        )
+    ]
+    own = Said(
+        overview=row["overview"],
+        genres=tuple(json.loads(row["genres"] or "[]")),
+        studio=row["studio"],
+        status=row["status"],
+        started=_day(row["released"]),
+        ended=_day(row["ended"]) if row["kind"] != TitleKind.MOVIE else None,
+        minutes=row["minutes"],
+    )
+    said = _said(entry) if entry is not None else None
+    if said is not None and row["kind"] == TitleKind.MOVIE:
+        said = replace(said, ended=None)  # a film comes out once
+    return about_from(own, said, minutes)
+
+
+def _said(entry: sqlite3.Row) -> Said:
+    """What AniList says of an entry, as kept (kura/franchises.py)."""
+    standing: dict[str, Status] = {
+        "FINISHED": "finished",
+        "RELEASING": "airing",
+        "NOT_YET_RELEASED": "coming",
+        "CANCELLED": "cancelled",
+        "HIATUS": "paused",
+    }
+    return Said(
+        overview=entry["description"],
+        genres=tuple(json.loads(entry["genres"] or "[]")),
+        studio=entry["studio"],
+        status=standing.get(entry["status"] or ""),
+        started=_day(entry["started"]),
+        ended=_day(entry["ended"]),
+        minutes=entry["minutes"],
     )
 
 

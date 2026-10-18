@@ -16,7 +16,7 @@ import sqlite3
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import PureWindowsPath
 from typing import Literal
 
@@ -581,16 +581,17 @@ def save_show(
     first found as a series stays one when its OVAs turn up."""
     with conn:
         row = conn.execute(
-            """INSERT INTO titles (kind, name, year, released, tmdb_type, tmdb_id, anilist_id,
-                                   airing, poster, backdrop, checked_at)
-               VALUES (?, ?, ?, ?, 'tv', ?, ?, ?, ?, ?, ?)
-               ON CONFLICT (tmdb_type, tmdb_id) DO UPDATE SET
-                   name = excluded.name, year = excluded.year, released = excluded.released,
-                   airing = excluded.airing, poster = excluded.poster,
-                   backdrop = excluded.backdrop, checked_at = excluded.checked_at,
-                   anilist_id = COALESCE(titles.anilist_id, excluded.anilist_id),
-                   kind = CASE WHEN titles.kind = 'series' THEN 'series' ELSE excluded.kind END
-               RETURNING id""",
+            f"""INSERT INTO titles (kind, name, year, released, tmdb_type, tmdb_id, anilist_id,
+                                    airing, poster, backdrop, checked_at, {_ABOUT})
+                VALUES (?, ?, ?, ?, 'tv', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (tmdb_type, tmdb_id) DO UPDATE SET
+                    name = excluded.name, year = excluded.year, released = excluded.released,
+                    airing = excluded.airing, poster = excluded.poster,
+                    backdrop = excluded.backdrop, checked_at = excluded.checked_at,
+                    anilist_id = COALESCE(titles.anilist_id, excluded.anilist_id),
+                    kind = CASE WHEN titles.kind = 'series' THEN 'series' ELSE excluded.kind END,
+                    {_ABOUT_UPDATED}
+                RETURNING id""",  # noqa: S608 - only column names go in
             (
                 kind.value,
                 show.title,
@@ -602,13 +603,21 @@ def save_show(
                 show.poster,
                 show.backdrop,
                 now.isoformat(),
+                *_about(
+                    show.overview,
+                    show.genres,
+                    show.studio,
+                    show.status,
+                    show.last_aired,
+                    show.minutes,
+                ),
             ),
         ).fetchone()
         title_id: int = row["id"]
         conn.execute("DELETE FROM episodes WHERE title_id = ?", (title_id,))
         conn.executemany(
-            "INSERT INTO episodes (title_id, season, number, name, aired, minutes)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO episodes (title_id, season, number, name, aired, minutes, overview)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     title_id,
@@ -617,11 +626,36 @@ def save_show(
                     e.title,
                     e.aired.isoformat() if e.aired else None,
                     e.minutes,
+                    e.overview,
                 )
                 for e in show.episodes
             ],
         )
     return title_id
+
+
+# What a title's About panel shows, as kept on its row (migration 23).
+_ABOUT = "overview, genres, studio, status, ended, minutes"
+_ABOUT_UPDATED = ", ".join(f"{column} = excluded.{column}" for column in _ABOUT.split(", "))
+
+
+def _about(
+    overview: str | None,
+    genres: tuple[str, ...],
+    studio: str | None,
+    status: str | None,
+    ended: date | None,
+    minutes: int | None,
+) -> tuple[str | None, str | None, str | None, str | None, str | None, int | None]:
+    """A title's About columns, as stored."""
+    return (
+        overview,
+        json.dumps(list(genres), ensure_ascii=False) if genres else None,
+        studio,
+        status,
+        ended.isoformat() if ended else None,
+        minutes,
+    )
 
 
 def _save_film(
@@ -631,25 +665,33 @@ def _save_film(
     entry: Anime,
     now: datetime,
 ) -> int:
+    return save_film(conn, film, entry.id if row is None else row["anilist_id"], now)
+
+
+def save_film(conn: sqlite3.Connection, film: Film, anilist_id: int | None, now: datetime) -> int:
+    """Stores a TMDB film, as identifying finds it or a weekly look again brings it up to date."""
     with conn:
         saved = conn.execute(
-            """INSERT INTO titles (kind, name, year, released, tmdb_type, tmdb_id, anilist_id,
-                                   poster, backdrop, checked_at)
-               VALUES ('movie', ?, ?, ?, 'movie', ?, ?, ?, ?, ?)
-               ON CONFLICT (tmdb_type, tmdb_id) DO UPDATE SET
-                   name = excluded.name, year = excluded.year, released = excluded.released,
-                   poster = excluded.poster, backdrop = excluded.backdrop,
-                   checked_at = excluded.checked_at
-               RETURNING id""",
+            f"""INSERT INTO titles (kind, name, year, released, tmdb_type, tmdb_id, anilist_id,
+                                    poster, backdrop, checked_at, {_ABOUT})
+                VALUES ('movie', ?, ?, ?, 'movie', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (tmdb_type, tmdb_id) DO UPDATE SET
+                    name = excluded.name, year = excluded.year, released = excluded.released,
+                    poster = excluded.poster, backdrop = excluded.backdrop,
+                    checked_at = excluded.checked_at,
+                    anilist_id = COALESCE(titles.anilist_id, excluded.anilist_id),
+                    {_ABOUT_UPDATED}
+                RETURNING id""",  # noqa: S608 - only column names go in
             (
                 film.title,
                 film.year,
                 film.released.isoformat() if film.released else None,
                 film.id,
-                entry.id if row is None else row["anilist_id"],
+                anilist_id,
                 film.poster,
                 film.backdrop,
                 now.isoformat(),
+                *_about(film.overview, film.genres, film.studio, film.status, None, film.minutes),
             ),
         ).fetchone()
     title_id: int = saved["id"]
@@ -662,14 +704,15 @@ def save_anilist_title(conn: sqlite3.Connection, entry: Anime, now: datetime) ->
     kind = entry.kind or TitleKind.SERIES
     with conn:
         row = conn.execute(
-            """INSERT INTO titles (kind, name, year, released, anilist_id, airing, poster,
-                                   backdrop, checked_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT (anilist_id) WHERE tmdb_id IS NULL DO UPDATE SET
-                   name = excluded.name, year = excluded.year, released = excluded.released,
-                   airing = excluded.airing, poster = excluded.poster,
-                   backdrop = excluded.backdrop, checked_at = excluded.checked_at
-               RETURNING id""",
+            f"""INSERT INTO titles (kind, name, year, released, anilist_id, airing, poster,
+                                    backdrop, checked_at, {_ABOUT})
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (anilist_id) WHERE tmdb_id IS NULL DO UPDATE SET
+                    name = excluded.name, year = excluded.year, released = excluded.released,
+                    airing = excluded.airing, poster = excluded.poster,
+                    backdrop = excluded.backdrop, checked_at = excluded.checked_at,
+                    {_ABOUT_UPDATED}
+                RETURNING id""",  # noqa: S608 - only column names go in
             (
                 kind.value,
                 entry.title,
@@ -680,6 +723,14 @@ def save_anilist_title(conn: sqlite3.Connection, entry: Anime, now: datetime) ->
                 entry.cover,
                 entry.banner,
                 now.isoformat(),
+                *_about(
+                    entry.description,
+                    entry.genres,
+                    entry.studio,
+                    entry.standing,
+                    entry.end,
+                    entry.minutes,
+                ),
             ),
         ).fetchone()
         title_id: int = row["id"]

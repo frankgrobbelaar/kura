@@ -770,6 +770,51 @@
         }
       }
     },
+    "/titles/{title_id}/about": {
+      "get": {
+        "summary": "Title About",
+        "description": "A title's About panel alone: a franchise's page shows its lead's.",
+        "operationId": "title_about_titles__title_id__about_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "title_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Title Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TitleAbout"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/titles/{title_id}/report": {
       "get": {
         "summary": "Title Report",
@@ -5319,6 +5364,35 @@
               }
             ],
             "title": "Cover"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Genres"
+          },
+          "studio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Studio"
           }
         },
         "type": "object",
@@ -5331,7 +5405,10 @@
           "episodes",
           "coming",
           "airing",
-          "cover"
+          "cover",
+          "overview",
+          "genres",
+          "studio"
         ],
         "title": "MissingTitle",
         "description": "A series, film, OVA or special of a franchise that the library has no part of, as AniList\nknows it."
@@ -7239,6 +7316,142 @@
         ],
         "title": "TidyResult"
       },
+      "TitleAbout": {
+        "properties": {
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Genres"
+          },
+          "studio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Studio"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "finished",
+                  "airing",
+                  "coming",
+                  "cancelled",
+                  "paused"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "started": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started"
+          },
+          "ended": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes"
+          },
+          "anilistId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anilistid"
+          },
+          "tmdbType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tv",
+                  "movie"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdbtype"
+          },
+          "tmdbId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdbid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overview",
+          "genres",
+          "studio",
+          "status",
+          "started",
+          "ended",
+          "minutes",
+          "anilistId",
+          "tmdbType",
+          "tmdbId"
+        ],
+        "title": "TitleAbout",
+        "description": "What a title's About panel says (kura/core/about.py), and where to read more of it."
+      },
       "TitleDetail": {
         "properties": {
           "id": {
@@ -7387,6 +7600,9 @@
             },
             "type": "array",
             "title": "Videos"
+          },
+          "about": {
+            "$ref": "#/components/schemas/TitleAbout"
           }
         },
         "type": "object",
@@ -7413,7 +7629,8 @@
           "missingSpecials",
           "upcomingEpisodes",
           "episodes",
-          "videos"
+          "videos",
+          "about"
         ],
         "title": "TitleDetail"
       },

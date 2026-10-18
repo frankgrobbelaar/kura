@@ -30,8 +30,13 @@ One GraphQL endpoint, `POST https://graphql.anilist.co`, from
 - one entry: `Media(id: $id, type: ANIME) { … }`.
 
 Both ask for the same fields: `id format episodes duration status startDate endDate
-title { romaji english native } synonyms coverImage { large } nextAiringEpisode
-relations { edges { relationType node { … } } }`.
+title { romaji english native } synonyms description(asHtml: false) genres
+studios(isMain: true) { nodes { name } } coverImage { large extraLarge } bannerImage
+nextAiringEpisode relations { edges { relationType node { … } } }`. The synopsis comes with
+markup and notes Kura takes out (`plain_text` in kura/core/catalog.py): line breaks stay,
+tags and `~!spoilers!~` go, and so does the note of where it came from, "(Source: …)". A change
+to the fields asked for raises `SHAPE` in kura/anilist.py, which is part of every answer's key
+in the cache, so answers kept from before aren't read for fields they don't have.
 [kura/core/catalog.py](../../engine/src/kura/core/catalog.py) reads them into `Anime` and
 `Related` values, with Kura's kinds: TV, TV short and web series (ONA) are a series, MOVIE a
 movie, OVA an OVA, SPECIAL and MUSIC a special. Relations to manga and novels are dropped. The
@@ -43,7 +48,8 @@ together: sequels, prequels, alternative versions, films and side stories do, cr
 
 To show what a franchise lacks, Kura follows those same story links out from the library's
 entries and asks about each entry it reaches (`Media(id: …)`), keeping its name, format, status,
-first day, episode count and cover in `anilist_entries` and its links with the rest
+first and last day, episode count and length, cover, synopsis, genres and main studio in
+`anilist_entries` and its links with the rest
 ([kura/franchises.py](../../engine/src/kura/franchises.py)). It asks three at each of the
 watcher's look-arounds, every 15 seconds while no scan runs and no change waits for one: about
 12 a minute, leaving most of the limit to scans and the match screen. What the library lacks

@@ -8,6 +8,15 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+### Added
+- A title's page says what it's about: its synopsis, genres, studio, when it aired, where it
+  stands and how long an episode lasts, as TMDB and AniList tell it, with its pages on both.
+- A franchise's page says what it's about and the years it spans, and a title you don't have
+  opens to show what AniList knows of it: its synopsis, studio, genres and its page there.
+
+### Changed
+- Long names on the shelf's cards wrap onto a second line rather than trail off.
+
 ## 0.19.0 - 2026-10-15
 
 ### Added

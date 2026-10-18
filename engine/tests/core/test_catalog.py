@@ -3,8 +3,9 @@
 import json
 from datetime import date
 from pathlib import Path
+from typing import cast
 
-from kura.core.catalog import TitleKind, anime, anime_list, film, hits, show
+from kura.core.catalog import TitleKind, anime, anime_list, film, hits, plain_text, show
 from kura.core.fields import Json
 from tests.tmdb_data import DBZ_SEASONS, movie_details, tv_details, tv_search
 
@@ -138,3 +139,101 @@ def test_an_anilist_entry_has_its_banner_for_a_background():
     [bebop] = anime_list(found)
 
     assert bebop.banner == "https://s4.anilist.co/file/anilistcdn/media/anime/banner/1.jpg"
+
+
+def test_a_tmdb_show_says_what_its_about_panel_shows():
+    details: dict[str, object] = {
+        **tv_details(9, "Starfall Academy", (2,), first_aired=date(2019, 4, 3)),
+        "overview": "A school between the stars.",
+        "genres": [{"id": 16, "name": "Animation"}, {"id": 10765, "name": "Sci-Fi & Fantasy"}],
+        "production_companies": [{"name": "Studio Kite"}, {"name": "Comet Films"}],
+        "episode_run_time": [24],
+        "last_air_date": "2019-04-10",
+    }
+    season = cast("dict[str, list[dict[str, object]]]", details["season/1"])
+    season["episodes"][0]["overview"] = "Mira arrives at the academy."
+
+    found = show(details)
+
+    assert found is not None
+    # Animation goes without saying.
+    assert (found.overview, found.genres, found.studio) == (
+        "A school between the stars.",
+        ("Sci-Fi & Fantasy",),
+        "Studio Kite",
+    )
+    assert (found.status, found.last_aired, found.minutes) == ("finished", date(2019, 4, 10), 24)
+    assert [episode.overview for episode in found.episodes] == [
+        "Mira arrives at the academy.",
+        None,
+    ]
+
+
+def test_a_tmdb_status_is_said_in_kuras_words():
+    def standing(status: str) -> str | None:
+        details = tv_details(9, "Starfall", (1,), first_aired=date(2019, 4, 3), status=status)
+        found = show(details)
+        return found.status if found else None
+
+    assert [standing(s) for s in ("Ended", "Canceled", "Planned", "Returning Series")] == [
+        "finished",
+        "cancelled",
+        "coming",
+        "airing",
+    ]
+
+
+def test_a_tmdb_film_says_what_its_about_panel_shows():
+    details = {
+        **movie_details(5, "Starfall: The First Comet", date(2022, 8, 1), 102),
+        "overview": "The comet returns.",
+        "genres": [{"id": 16, "name": "Animation"}, {"id": 18, "name": "Drama"}],
+        "production_companies": [{"name": "Studio Kite"}],
+        "status": "Released",
+    }
+
+    found = film(details)
+
+    assert found is not None
+    assert (found.overview, found.genres, found.studio, found.status, found.minutes) == (
+        "The comet returns.",
+        ("Drama",),
+        "Studio Kite",
+        "finished",
+        102,
+    )
+
+
+def test_an_anilist_entry_says_its_synopsis_genres_and_studio():
+    media: dict[str, object] = {
+        "id": 9,
+        "format": "TV",
+        "status": "HIATUS",
+        "title": {"english": "Starfall Academy", "romaji": "Hoshifuri Gakuen"},
+        "description": "Mira joins the academy.<br><br>Her rival <i>Kai</i> waits. (Source: Comet)",
+        "genres": ["Action", "Sci-Fi", "Action"],
+        "studios": {"nodes": [{"name": "Studio Kite"}]},
+        "coverImage": {
+            "large": "https://s4.anilist.co/cover-l.jpg",
+            "extraLarge": "https://s4.anilist.co/cover-xl.jpg",
+        },
+    }
+
+    entry = anime(media)
+
+    assert entry is not None
+    assert entry.description == "Mira joins the academy.\n\nHer rival Kai waits."
+    assert (entry.genres, entry.studio, entry.standing) == (
+        ("Action", "Sci-Fi"),
+        "Studio Kite",
+        "paused",
+    )
+    assert entry.cover_big == "https://s4.anilist.co/cover-xl.jpg"
+
+
+def test_a_synopsis_keeps_no_markup_spoilers_or_note_of_its_source():
+    assert plain_text("A duel. ~!The rival is her brother.!~ Who wins?") == "A duel. Who wins?"
+    assert plain_text("Tom &amp; Jerry&#039;s __big__ day") == "Tom & Jerry's big day"
+    assert plain_text("One.<br>\nTwo.\n\n\n[Written by MAL Rewrite]") == "One.\n\nTwo."
+    assert plain_text("<br>") is None
+    assert plain_text(None) is None

@@ -32,7 +32,19 @@ ANILIST_ANSWERS = {
     "one piece": "one-piece",
 }
 
-DBZ_DETAILS = tv_details(12971, "Dragon Ball Z", DBZ_SEASONS, first_aired=date(1989, 4, 26))
+DBZ_DETAILS = {
+    **tv_details(12971, "Dragon Ball Z", DBZ_SEASONS, first_aired=date(1989, 4, 26)),
+    "overview": "Five years after winning the World Martial Arts tournament, Goku is now living a"
+    " peaceful life with his wife and son.",
+    "genres": [
+        {"id": 16, "name": "Animation"},
+        {"id": 10759, "name": "Action & Adventure"},
+        {"id": 10765, "name": "Sci-Fi & Fantasy"},
+    ],
+    "production_companies": [{"id": 5542, "name": "Toei Animation"}],
+    "episode_run_time": [24],
+    "last_air_date": "1996-01-31",
+}
 BEBOP_DETAILS = tv_details(
     30991,
     "Cowboy Bebop",

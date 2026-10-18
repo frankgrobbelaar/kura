@@ -59,6 +59,9 @@ class Entry:
     start: date | None
     episodes: int | None
     cover: str | None  # the cover's web address
+    description: str | None = None  # its synopsis, as plain text
+    genres: tuple[str, ...] = ()
+    studio: str | None = None  # its main animation studio
 
     @property
     def kind(self) -> TitleKind | None:

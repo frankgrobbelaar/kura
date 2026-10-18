@@ -151,6 +151,25 @@
   --animate-pulse: pulse 1.6s ease-in-out infinite;
   --animate-shimmer: shimmer 1.8s linear infinite;
   --animate-float: float 4s ease-in-out infinite;
+  --animate-sheet-in: sheet-in 0.32s var(--ease-cinema) both;
+  --animate-fade-in: fade-in 0.2s var(--ease-cinema) both;
+
+  /* A panel at the window's side comes in from that side; what's behind it dims. */
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateX(32px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
 
   @keyframes fade-up {
     from {

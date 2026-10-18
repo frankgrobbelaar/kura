@@ -32,7 +32,14 @@ from kura.cache import Cache
 from kura.config import DataPaths
 from kura.core.catalog import TitleKind
 from kura.core.extensions import is_video
-from kura.identify import AIRING_EVERY, due, save_anilist_title, save_links, save_show
+from kura.identify import (
+    AIRING_EVERY,
+    due,
+    save_anilist_title,
+    save_film,
+    save_links,
+    save_show,
+)
 from kura.reports import write_reports
 from kura.scan import ScanBusyError, ScanStatus
 from kura.tmdb import Tmdb
@@ -171,7 +178,7 @@ class Watcher:
         with closing(db.connect(self._paths.database)) as conn:
             rows = conn.execute(
                 """SELECT * FROM titles AS t
-                   WHERE kind != 'movie' AND checked_at IS NOT NULL
+                   WHERE checked_at IS NOT NULL
                      AND EXISTS (SELECT 1 FROM files AS f
                                  WHERE f.title_id = t.id AND f.gone_at IS NULL)"""
             ).fetchall()
@@ -212,9 +219,9 @@ class Watcher:
                 return 0
 
     def _ask(self, conn: sqlite3.Connection, row: sqlite3.Row, tmdb: Tmdb | None) -> bool | None:
-        """Asks again for one title's episode list: True when it came, False when TMDB or
-        AniList no longer has the show, None when there's no one to ask (a TMDB show while Kura
-        has no key, or an OVA that's a film on TMDB)."""
+        """Asks again for one title's episode list, or a film's facts: True when it came, False
+        when TMDB or AniList no longer has it, None when there's no one to ask (TMDB while Kura
+        has no key)."""
         if row["tmdb_type"] == "tv":
             if tmdb is None:
                 return None
@@ -222,6 +229,14 @@ class Watcher:
             if show is None:
                 return False
             save_show(conn, show, TitleKind(row["kind"]), row["anilist_id"], self._now())
+            return True
+        if row["tmdb_type"] == "movie":
+            if tmdb is None:
+                return None
+            film = tmdb.film(row["tmdb_id"])
+            if film is None:
+                return False
+            save_film(conn, film, row["anilist_id"], self._now())
             return True
         if row["tmdb_id"] is not None or row["anilist_id"] is None:
             return None
