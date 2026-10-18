@@ -115,7 +115,7 @@ export function Attention(props: AttentionProps) {
         </h2>
         <span className="text-13 text-fg-muted">Nothing changes until you review it</span>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">{cards}</div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">{cards}</div>
     </section>
   );
 }

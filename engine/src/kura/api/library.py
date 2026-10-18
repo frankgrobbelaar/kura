@@ -40,6 +40,35 @@ class Library(ApiModel):
     larger: int
 
 
+class TitleSpace(ApiModel):
+    title_id: int
+    name: str
+    files: int
+    size: int  # bytes
+
+
+class Converted(ApiModel):
+    """What converting has done to the space the library takes."""
+
+    files: int
+    before: int  # bytes the originals took
+    after: int  # bytes their results take
+
+
+class Glance(ApiModel):
+    """The library in a few numbers: how long it plays, how much of that was watched, what
+    converting did to its size, and the titles that take the most room."""
+
+    seconds: float  # how long it all plays
+    watched: float  # seconds of it watched
+    converted: Converted
+    biggest: list[TitleSpace]  # the titles taking the most room, the biggest first
+    size: int  # bytes, all of it
+
+
+BIGGEST = 5  # titles named in "the most room"
+
+
 @router.get("/folders")
 def list_folders(conn: Database) -> list[LibraryFolder]:
     counts = {
@@ -104,6 +133,47 @@ def forget_folder(folder_id: int, conn: Database) -> Response:
     if not remove_folder(conn, folder_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "That folder isn't in your library.")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/library/glance")
+def glance(conn: Database) -> Glance:
+    """The library in a few numbers, for Home."""
+    plays = conn.execute(
+        """SELECT COALESCE(SUM(f.duration), 0) AS seconds, COALESCE(SUM(f.size), 0) AS size,
+                  COALESCE(SUM(CASE WHEN w.watched_at IS NOT NULL THEN f.duration END), 0)
+                    AS watched
+           FROM files AS f LEFT JOIN watched AS w ON w.file_id = f.id
+           WHERE f.gone_at IS NULL"""
+    ).fetchone()
+    # Each video's latest conversion that's still in place (not put back from History).
+    done = conn.execute(
+        """SELECT COUNT(*) AS files, COALESCE(SUM(j.source_size), 0) AS before,
+                  COALESCE(SUM(j.output_size), 0) AS after
+           FROM jobs AS j JOIN files AS f ON f.id = j.file_id
+           LEFT JOIN plans AS p ON p.id = j.plan_id
+           WHERE j.kind = 'convert' AND j.state = 'done' AND j.problem IS NULL
+             AND j.source_size IS NOT NULL AND j.output_size IS NOT NULL
+             AND f.gone_at IS NULL AND p.undone_at IS NULL
+             AND j.id = (SELECT MAX(id) FROM jobs AS k
+                         WHERE k.file_id = j.file_id AND k.kind = 'convert' AND k.state = 'done')"""
+    ).fetchone()
+    biggest = conn.execute(
+        """SELECT t.id, t.name, COUNT(*) AS files, SUM(f.size) AS size
+           FROM files AS f JOIN titles AS t ON t.id = f.title_id
+           WHERE f.gone_at IS NULL
+           GROUP BY t.id ORDER BY size DESC, t.name LIMIT ?""",
+        (BIGGEST,),
+    ).fetchall()
+    return Glance(
+        seconds=plays["seconds"],
+        watched=plays["watched"],
+        converted=Converted(files=done["files"], before=done["before"], after=done["after"]),
+        biggest=[
+            TitleSpace(title_id=row["id"], name=row["name"], files=row["files"], size=row["size"])
+            for row in biggest
+        ],
+        size=plays["size"],
+    )
 
 
 @router.get("/library")

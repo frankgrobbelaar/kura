@@ -332,6 +332,36 @@ describe("HomePage", () => {
     await waitFor(() => expect(sent(fetch, "POST", "/files/5/broken")).toHaveLength(1));
   });
 
+  it("says the library at a glance, and what takes the most room", async () => {
+    engineWith({
+      "/folders": [FOLDER],
+      "/library": { ...NO_LIBRARY, folders: 1, files: 3, size: 407_000_000, sd: 3 },
+      "/library/glance": {
+        seconds: 1240 * 3600,
+        watched: 86 * 3600,
+        converted: { files: 412, before: 380_000_000_000, after: 290_000_000_000 },
+        biggest: [
+          { titleId: 1, name: "Starfall Academy", files: 239, size: 24_100_000_000 },
+          { titleId: 2, name: "Lanterns", files: 24, size: 9_800_000_000 },
+        ],
+        size: 61_000_000_000,
+      },
+    });
+    renderHome(READY);
+
+    const glance = await screen.findByRole("region", { name: "At a glance" });
+    expect(glance).toHaveTextContent("To watch1,240 hoursof anime, end to end");
+    expect(glance).toHaveTextContent("Watched86 hours7% of it");
+    expect(glance).toHaveTextContent("Converting saved90 GB412 files: 380 GB → 290 GB");
+    expect(glance).toHaveTextContent(
+      "The most room61 GB in allStarfall Academy24 GBLanterns9.8 GB",
+    );
+    expect(within(glance).getByRole("link", { name: "Starfall Academy" })).toHaveAttribute(
+      "href",
+      "/titles/1",
+    );
+  });
+
   it("lists each show's next episode still to come, the soonest first", async () => {
     const day = (from: number) => {
       const when = new Date();

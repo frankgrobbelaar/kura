@@ -34,7 +34,7 @@ export function ComingUp({ all, onAll }: { all: boolean; onAll: (all: boolean) =
               </span>
               <Poster
                 title={{ id: episode.titleId, name: episode.title, hasPoster: episode.hasPoster }}
-                small
+                size="tiny"
                 className="w-8 shrink-0 rounded-6"
               />
               <span className="flex min-w-0 flex-1 flex-col">

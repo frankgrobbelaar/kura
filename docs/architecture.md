@@ -376,6 +376,10 @@ of the night's; it becomes broken only when the owner marks it so (`POST /files/
 `POST /files/{id}/check` plays one again now, and `POST /files/{id}/plays` takes it off the
 list till next month's check.
 
+Home's "At a glance" (`GET /library/glance`) adds up how long the library's videos play, how much
+of that was watched, what each video's latest conversion still in place did to its size (from
+the queue's jobs: one put back from History doesn't count), and the titles taking the most room.
+
 The title bar's search (`kura/search.py`, `GET /search?q=`) finds the library's anime by any
 name AniList says they go by, their episodes by code or name (the ones the library lacks too),
 and its videos by their files' names. Every word typed must be there, however a name is written:

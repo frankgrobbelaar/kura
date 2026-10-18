@@ -56,7 +56,7 @@ function Card({ item, onStop }: { item: Continuing; onStop: () => void }) {
       >
         <Poster
           title={{ id: item.titleId, name: item.title, hasPoster: item.hasPoster }}
-          small
+          size="small"
           className="rounded-10"
         />
       </Link>

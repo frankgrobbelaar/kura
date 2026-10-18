@@ -27,6 +27,7 @@ import { dayAndTime, isEnglish, scanChanges } from "@/lib/format";
 import { Attention } from "./attention";
 import { ComingUp } from "./coming-up";
 import { ContinueWatching } from "./continue-watching";
+import { Glance } from "./glance";
 import { Recovered } from "./recovered";
 import { Shelf } from "./shelf";
 import { UnplayedSheet } from "./unplayed";
@@ -90,6 +91,7 @@ export function HomePage() {
         </Loading>
       )}
       {working && library.data && !empty && <Pictures library={library.data} />}
+      {working && library.data && !empty && <Glance />}
       {working && !empty && videos.length > 0 && <Languages videos={videos} />}
       {working && library.data && !empty && <ContinueWatching />}
       {working && library.data && !empty && <ComingUp all={allComing} onAll={setAllComing} />}

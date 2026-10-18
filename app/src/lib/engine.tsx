@@ -879,6 +879,22 @@ export interface Continuing {
   following: NextVideo[];
 }
 
+/** The library in a few numbers, for Home. */
+export interface LibraryGlance {
+  /** How long it all plays. */
+  seconds: number;
+  /** Seconds of it watched. */
+  watched: number;
+  /** What converting did to the space the converted files take. */
+  converted: { files: number; before: number; after: number };
+  /** The titles taking the most room, the biggest first. */
+  biggest: { titleId: number; name: string; files: number; size: number }[];
+  /** In bytes, all of it. */
+  size: number;
+}
+
+export const useLibraryGlance = () => useEngineQuery<LibraryGlance>("/library/glance");
+
 /** A title's next episode, still to come, and how many more its list has after it. */
 export interface ComingEpisode {
   titleId: number;

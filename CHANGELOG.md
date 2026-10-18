@@ -32,9 +32,12 @@ shows these notes when it offers the update.
   you turn it off in Settings › Libraries.
 - Tick a title's videos to do several at once: mark them watched or not, convert them, make their
   English subtitles or delete them. A whole season ticks at once.
+- "At a glance" on Home: how long your library plays end to end, how much of it you've watched,
+  what converting saved (or used, for the bigger picture), and the titles taking the most room.
 
 ### Changed
 - Long names on the shelf's cards wrap onto a second line rather than trail off.
+- One card needing your attention on Home is a card wide, rather than the whole row.
 - Deleting a video, on a title's page or "Which anime is this?", is in its ⋮ menu now, as
   "Delete…", beside what else you can do with it.
 

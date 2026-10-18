@@ -208,6 +208,30 @@
         }
       }
     },
+    "/library/glance": {
+      "get": {
+        "summary": "Glance",
+        "description": "The library in a few numbers, for Home.",
+        "operationId": "glance_library_glance_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Glance"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/library": {
       "get": {
         "summary": "Library",
@@ -4246,6 +4270,30 @@
         ],
         "title": "ConvertOptions"
       },
+      "Converted": {
+        "properties": {
+          "files": {
+            "type": "integer",
+            "title": "Files"
+          },
+          "before": {
+            "type": "integer",
+            "title": "Before"
+          },
+          "after": {
+            "type": "integer",
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "before",
+          "after"
+        ],
+        "title": "Converted",
+        "description": "What converting has done to the space the library takes."
+      },
       "Convertible": {
         "properties": {
           "fileId": {
@@ -5461,6 +5509,42 @@
         ],
         "title": "FranchiseSummary",
         "description": "Titles AniList ties together by story. A title on its own is a franchise of one."
+      },
+      "Glance": {
+        "properties": {
+          "seconds": {
+            "type": "number",
+            "title": "Seconds"
+          },
+          "watched": {
+            "type": "number",
+            "title": "Watched"
+          },
+          "converted": {
+            "$ref": "#/components/schemas/Converted"
+          },
+          "biggest": {
+            "items": {
+              "$ref": "#/components/schemas/TitleSpace"
+            },
+            "type": "array",
+            "title": "Biggest"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seconds",
+          "watched",
+          "converted",
+          "biggest",
+          "size"
+        ],
+        "title": "Glance",
+        "description": "The library in a few numbers: how long it plays, how much of that was watched, what\nconverting did to its size, and the titles that take the most room."
       },
       "GpuReading": {
         "properties": {
@@ -9068,6 +9152,34 @@
         ],
         "title": "TitleKind",
         "description": "What a title is, in the words Kura shows: a TV series, a movie, an OVA or a special."
+      },
+      "TitleSpace": {
+        "properties": {
+          "titleId": {
+            "type": "integer",
+            "title": "Titleid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "files": {
+            "type": "integer",
+            "title": "Files"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "titleId",
+          "name",
+          "files",
+          "size"
+        ],
+        "title": "TitleSpace"
       },
       "TitleSummary": {
         "properties": {

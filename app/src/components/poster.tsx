@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
  */
 export function Poster(props: {
   title: Pick<TitleSummary, "id" | "name" | "hasPoster">;
-  /** A thumbnail beside a line of text: its letters to fit. */
-  small?: boolean;
+  /** A thumbnail beside a line of text: its letters to fit ("small"), or none ("tiny"). */
+  size?: "small" | "tiny";
   className?: string;
 }) {
   const { title, className } = props;
@@ -26,9 +26,10 @@ export function Poster(props: {
           <span
             className={cn(
               "absolute font-extrabold text-white leading-none tracking-[-0.03em]",
-              props.small
+              props.size === "small"
                 ? "right-1 bottom-1.5 left-1.5 text-15"
                 : "right-2.5 bottom-3 left-3 text-36",
+              props.size === "tiny" && "hidden",
             )}
           >
             {initials(title.name)}
