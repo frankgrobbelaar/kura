@@ -24,6 +24,11 @@ private; these snapshots are the shared copy):
   Setup (on the owner's PC and on a laptop with Intel graphics) and in Settings › About, Convert's
   times measured on this PC, English subtitles on a smaller card, the small things, and what a PC
   needs, for the README and the downloads page ([anypc.html](anypc.html) and the pages after it).
+- [Kura 1.0](https://claude.ai/artifact/7WBdCUmEhNuGVqpdpa3BKZ): the eight additions that make
+  1.0, drawn after they were built: Home at a glance with Continue watching and Coming up, a
+  title's About, watched marks and ticks, a video in full, an episode you don't have, choosing a
+  poster, picking up where you stopped, and the health check ([one.html](one.html), its pictures
+  in [one/](one/)). Kura's own screens from its tests, with made-up titles.
 - [Kura README Options](https://claude.ai/artifact/SJXeVqCrbCZPHk5Y17p7jk): three drafts of the
   repo's README, B (a tour) chosen ([readme.html](readme.html)). Its pictures are the README's
   own, in [../readme/](../readme/).
@@ -58,6 +63,7 @@ private; these snapshots are the shared copy):
 | English sound from another copy | [english-copy.html](english-copy.html) |
 | Home: what has no English | [english-home.html](english-home.html) |
 | English subtitles' small things | [english-states.html](english-states.html) |
+| Kura 1.0: what it adds, as built | [one.html](one.html) |
 | Setup: what this PC can do | [anypc.html](anypc.html) |
 | The same on a laptop with Intel graphics | [anypc-laptop.html](anypc-laptop.html) |
 | Settings › About: this PC | [anypc-about.html](anypc-about.html) |

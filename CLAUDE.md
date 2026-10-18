@@ -6,7 +6,7 @@ converts the whole library to one standard, with AI upscaling for SD sources. It
 own tool: one user, one PC, never commercial, no sign-in. The code is shared under the MIT
 licence: anyone may fork it, but the repo takes no contributions.
 
-**Where it stands (2026-10-15):** design language chosen; repo, CI, installer and updater
+**Where it stands (2026-10-18):** design language chosen; repo, CI, installer and updater
 pipeline set up, with semantic versions, a changelog and a downloads page. Built and tested end to
 end: first-run setup with ffmpeg fetched from the list the installer shows; the scan (find, read
 with ffprobe, identify on AniList and TMDB, check for gaps and write the reports); "Which anime is
@@ -24,10 +24,13 @@ full screen and back); English subtitles made on the PC from a video's own sound
 the graphics card, in the queue with the conversions), with each video's languages on its title's
 page and Home; another copy's English sound and subtitles added to the copy Tidy up keeps; and
 Kura on any PC (what each PC can do, tested in Setup and Settings › About, AMD's and Intel's
-encoders, this PC's own times, the lighter way where a card is small or slow); and search, the
-title bar's and each long list's. Kura 0.1.0, the
-first release, went out on 2026-10-12; CHANGELOG.md has every release since. Everything in
-[What's next](#whats-next) is built.
+encoders, this PC's own times, the lighter way where a card is small or slow); search, the
+title bar's and each long list's; and Kura 1.0's (What's next, 13): a video in full and its
+folder from any list, what each title is about, watched and picked up where it stopped,
+Continue watching and Coming up on Home, the overnight health check, ticks on a title's videos,
+the library at a glance and a poster of the owner's choosing. Kura 0.1.0, the first release,
+went out on 2026-10-12, and 1.0.0, the first meant for everyday use, on 2026-10-18;
+CHANGELOG.md has every release since. Everything in [What's next](#whats-next) is built.
 
 ## Ground rules
 
@@ -311,6 +314,50 @@ Everything decided so far. Don't ask again; change only with the owner.
   title's videos through every season, Convert's What, the queue's Up next, Tidy up's changes,
   and History's filter by anime or file (the board's). Each narrows as you type, every word
   wanted however a name is written, and what it hides isn't acted on.
+- Kura 1.0 (the owner, 2026-10-18: "Lets build 1 to 8, update or make any nice UI/UX changes and
+  lets get to 1.0.0"; "I will be AFK, do the work, review, test, ec and get us to 1.0.0"), the
+  eight from a list Claude offered:
+  - Wherever a video is listed (a title's videos, the queue, "Which anime is this?", Tidy up's
+    changes and copies), its ⋮ menu has "Show in folder" and "Copy path"; deleting moved into it
+    as "Delete…", last and apart. A title's videos and episodes open in a side sheet: the
+    episode's title and air date, what happens in it (hidden till asked: it gives the story
+    away), the file's tracks, length, size, place and what converting it does. An episode the
+    library lacks opens from the episode map (a list the arrow keys go along) or the missing list,
+    one still to come saying "Not out yet".
+  - A title's page has About: TMDB's synopsis first (written for English readers), AniList's
+    genres and main studio first, when it aired, where it stands (finished, still airing, not out
+    yet, cancelled, on a break), how long an episode lasts, and its pages on AniList and TMDB. A
+    franchise's page says what its lead is about and the years it spans; a title it lacks opens
+    with what AniList knows of it.
+  - Watched (Kura's records only: nothing is written into the files): the player tells the engine
+    where a video is every ten seconds once it has played ten, a video seen to its last tenth is
+    watched, and Play picks one stopped part way up there (not in its first 30 seconds), with
+    "Start over" for a moment. A title's videos tick off what's watched and say what's left of
+    one stopped; their menus mark them watched or not. Home's "Continue watching" lists each
+    title part way through, latest first: the video stopped, or the next not yet watched, in the
+    order a title's page plays them; a quick look leaves it as it was; "Remove from Continue
+    watching" leaves a title out till it plays again.
+  - Home's "Coming up": each of the library's shows with an episode still to come that it hasn't
+    got, its next one by the day it airs, from the episode lists Kura keeps. On the day one airs
+    the owner is told once (one notification for the day's). It never searches for or fetches an
+    episode: what to do about one is the owner's own business.
+  - The health check: from 23:00 to 07:00, while the queue has no job, a few at a time, every
+    video is played a few seconds at three points, and again a month on. It played when its
+    pictures came (counted with ffmpeg's `-progress`), as an original can print decoder noise
+    starting at a point and still play well. A file that changes is due again, one Kura converts
+    counts as checked, and a folder whose drive isn't connected waits. What didn't play is listed
+    on Home ("See which"), to play and see, try again, call fine ("It plays fine") or mark as
+    broken, one notification telling of the night's: nothing changes till the owner says. On
+    unless turned off in Settings › Libraries, with "Check them all again".
+  - Ticks on a title's videos, a whole season at once: marked watched or not together, deleted
+    together once asked, or taken to Convert or to making English subtitles, where they start
+    chosen (`?files=`).
+  - Home's "At a glance", after the videos by picture and by language: how long the library plays
+    end to end, how much was watched, what converting saved or used (each video's latest
+    conversion still in place), and the three titles taking the most room.
+  - A title's poster opens "Choose a poster": TMDB's (English, Japanese or without words) and
+    AniList's largest cover. The choice is kept apart from the poster an episode list brings, so a
+    refresh never undoes it; every screen and the poster next to the show follow it.
 - Order of work: design language (done), repo and pipelines (done), then building.
 
 **Design: Cinema** (the owner's pick of three; tokens in `app/src/styles/tokens.css`)
@@ -341,7 +388,9 @@ Everything decided so far. Don't ask again; change only with the owner.
   and queue, the same in Cinema's dark beside them, and the two lights not chosen),
   [Kura Player](https://claude.ai/artifact/3MK2zSwv9fS1jzt2rP7Qw3),
   [Kura English Subtitles](https://claude.ai/artifact/RmbcFdZiDMXYvz69cQ9CYA) (seven boards) and
-  [Kura on Any PC](https://claude.ai/artifact/BRYamJpre3pLDT4ZZtPhaN) (seven boards).
+  [Kura on Any PC](https://claude.ai/artifact/BRYamJpre3pLDT4ZZtPhaN) (seven boards), and
+  [Kura 1.0](https://claude.ai/artifact/7WBdCUmEhNuGVqpdpa3BKZ) (its screens as built, from the
+  tests, with made-up titles).
   Snapshots in [docs/design/](docs/design/), each canvas's as it changes (the owner, 2026-10-15:
   "Make sure to add the designs to the docs").
 
@@ -521,6 +570,11 @@ Everything decided so far. Don't ask again; change only with the owner.
     converting on AMD's and Intel's encoders as on NVIDIA's; times measured on this PC; the lighter
     way where the card is small or slow; the small things; and what a PC needs in the README and
     on the downloads page: done.
+13. Kura 1.0 (2026-10-18), the eight under Decisions › Kura 1.0, drawn after building in
+    [docs/design/one.html](docs/design/one.html) and the
+    [Kura 1.0](https://claude.ai/artifact/7WBdCUmEhNuGVqpdpa3BKZ) page: file actions and a
+    video's details, About, watched and picked up, Continue watching, Coming up, the health
+    check, ticks, at a glance and choosing a poster: done, released as 1.0.0.
 
 Licences, all settled (the owner, 2026-10-14). ffmpeg: Kura doesn't ship it; the first run
 downloads an LGPL build (LGPL-2.1-or-later) from the source `engine/src/kura/downloads.json`

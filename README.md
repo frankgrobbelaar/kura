@@ -18,7 +18,7 @@ you say yes. It's for the videos you already have: Kura never finds, downloads o
   <br>
 </p>
 
-![Kura's home: what's in your library, and what needs you](docs/readme/home.png)
+![Kura's home: your library by picture, by language and at a glance](docs/readme/home.png)
 
 ## Made for anime
 
@@ -40,9 +40,10 @@ isn't sure of waits for you on "Which anime is this?", with stills and a quick l
 
 ### 2. See what's missing
 
-Every title gets a page: its seasons, an episode map, the episodes that aired that you don't have,
-and a gap report beside the files. A franchise's page even shows the films and OVAs you have none
-of, each in its place, and keeps watching for new ones.
+Every title gets a page: what it's about, its seasons, an episode map, the episodes that aired
+that you don't have, and a gap report beside the files. A franchise's page even shows the films
+and OVAs you have none of, each in its place, and keeps watching for new ones. Home lists the
+episodes still to come of the shows you have, by the day they air.
 
 ![A franchise's page, the titles you're missing as dotted placeholders](docs/readme/franchise.png)
 
@@ -78,8 +79,10 @@ and adds it.
 ### 6. Check it, right there
 
 A small player is built in, for a quick look or a whole episode: it floats over the page wherever
-you drag it, and goes full screen with the sound and subtitles the file has. Your media server
-does the rest, on the TV, the phone or wherever you watch.
+you drag it, and goes full screen with the sound and subtitles the file has. It remembers where
+you stopped, and Home picks up what you're part way through. Overnight, Kura test-plays every
+video, so a file damaged since shows before you want it. Your media server does the rest, on the
+TV, the phone or wherever you watch.
 
 ![The player full screen, sound and subtitles open](docs/readme/player-full.png)
 
@@ -118,6 +121,10 @@ does the rest, on the TV, the phone or wherever you watch.
   <tr>
     <td nowrap><b>Keeps copies</b></td>
     <td>What's replaced or deleted waits 30 days in quarantine on its own drive.</td>
+  </tr>
+  <tr>
+    <td nowrap><b>Checks</b></td>
+    <td>Every video is test-played overnight; what didn't play waits for you, and nothing changes till you say.</td>
   </tr>
   <tr>
     <td nowrap><b>Stays local</b></td>

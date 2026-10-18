@@ -8,6 +8,9 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+Kura 1.0, the first version meant for everyday use. There's nothing to do on your part: it
+updates as any version does, and keeps everything you have.
+
 ### Added
 - A title's page says what it's about: its synopsis, genres, studio, when it aired, where it
   stands and how long an episode lasts, as TMDB and AniList tell it, with its pages on both.
