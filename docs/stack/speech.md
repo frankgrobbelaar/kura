@@ -29,6 +29,11 @@ subtitles go beside it as `Episode 1.en.srt`, the name media server apps read, o
   how likely it is that someone speaks, 10 seconds at a time; windows overlap by half and are
   averaged.
 
+Checked 2026-10-18: the pinned commits are still the newest of both exports, and segmentation 3.0
+is still pyannote's newest. Whisper large-v3-turbo, OpenAI's newest, is quicker than medium but
+was trained to write down what's said, not to translate it, and Best translates Japanese into
+English, so medium stays.
+
 Licences: Whisper's code and weights are MIT; pyannote's model card says MIT, and its notice uses
 pyannote.audio's licence text (CNRS). Both are listed in THIRD-PARTY-NOTICES.txt (the detector)
 and on the installer's first page (the downloads).

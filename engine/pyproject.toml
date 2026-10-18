@@ -6,7 +6,7 @@ requires-python = ">=3.14"
 license = "MIT"
 dependencies = [
     "anitopy>=2.1.1",
-    "fastapi>=0.143.0",
+    "fastapi>=0.143.5",
     "numpy>=2.5.4",
     "onnxruntime-directml>=1.24.4",
     "typer>=0.27.3",
@@ -23,15 +23,15 @@ dev = [
     "pyinstaller>=6.22.3",
     "pyright>=1.1.414",
     "pytest>=9.1.1",
-    "ruff>=0.17.0",
+    "ruff>=0.17.1",
 ]
 
 [build-system]
-requires = ["uv_build>=0.13.0,<0.14"]
+requires = ["uv_build>=0.13.1,<0.14"]
 build-backend = "uv_build"
 
 [tool.uv]
-required-version = ">=0.13.0"
+required-version = ">=0.13.1"
 python-preference = "only-managed"  # the same uv-managed Python on every machine
 
 [tool.ruff]

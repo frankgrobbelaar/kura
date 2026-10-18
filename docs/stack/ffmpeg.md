@@ -123,3 +123,7 @@ tried against starts at 0.
    (`autobuild-YYYY-MM-<last day>-…`) and its `win64-lgpl-shared` zip for the newest release branch.
 2. Put its address, size and SHA-256 (the release lists each asset's digest) in `downloads.json`.
 3. Run the engine tests, and check a scan and a conversion on real files before releasing.
+
+A new pin means every copy of Kura downloads ffmpeg again (77 MB), so it moves for a new release
+or a month's last build, not for each day's. Checked 2026-10-18: October's builds are still
+9.0.2, with the 9.0 branch's later fixes, so the pin stays on September's last build.

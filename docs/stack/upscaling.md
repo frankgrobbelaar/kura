@@ -48,6 +48,10 @@ chapters from the source. Decoding, the model and encoding run side by side.
 
 The model file and how it was made: [engine/src/kura/assets/README.md](../../engine/src/kura/assets/README.md).
 
+Checked 2026-10-18: Real-ESRGAN's newest release (v0.3.0) adds only a general model, not one
+for anime video, so `realesr-animevideov3` stays; Anime4K's newest release, v4.0.1, carries the
+same `Anime4K_v4.0.zip` the shader is built from (SHA-256 `139cd282…`), so it's current too.
+
 ## Anime4K through libplacebo
 
 ffmpeg's `libplacebo` filter (in the LGPL build Kura downloads) runs Anime4K's GLSL shaders on

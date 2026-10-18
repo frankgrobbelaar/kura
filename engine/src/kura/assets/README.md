@@ -18,7 +18,8 @@ How they were made:
   G, B, R planes into R, G, B, runs the model (4x), halves the result with a box filter (720x540
   becomes 1440x1080) and hands back G, B, R planes; width and height are free. Exporting again
   gives the same model (identical output), though the file's bytes can differ.
-- The shader: `uv run python tools/build_shaders.py Anime4K_v4.0.zip` from Anime4K's release v4.0.
+- The shader: `uv run python tools/build_shaders.py Anime4K_v4.0.zip` from Anime4K's release v4.0
+  (its newest, v4.0.1, carries the same zip).
 - The voice detector: `onnx/model.onnx` from
   [onnx-community/pyannote-segmentation-3.0](https://huggingface.co/onnx-community/pyannote-segmentation-3.0)
   at commit `733a93b6473d019a773298e08cefa686894b1854`, as it is.
