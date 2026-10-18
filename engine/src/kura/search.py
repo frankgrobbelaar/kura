@@ -94,7 +94,8 @@ def search(conn: sqlite3.Connection, query: str, today: date, *, limit: int = 6)
 
 def _titles(conn: sqlite3.Connection, wanted: list[str]) -> list[TitleFound]:
     rows = conn.execute(
-        """SELECT t.id, t.name, t.kind, t.year, t.released, t.poster, a.names
+        """SELECT t.id, t.name, t.kind, t.year, t.released,
+                  COALESCE(t.poster_choice, t.poster) AS poster, a.names
            FROM titles AS t LEFT JOIN anilist_entries AS a ON a.id = t.anilist_id
            WHERE EXISTS (SELECT 1 FROM files AS f WHERE f.title_id = t.id AND f.gone_at IS NULL)"""
     ).fetchall()

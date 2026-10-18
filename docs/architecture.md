@@ -380,6 +380,13 @@ Home's "At a glance" (`GET /library/glance`) adds up how long the library's vide
 of that was watched, what each video's latest conversion still in place did to its size (from
 the queue's jobs: one put back from History doesn't count), and the titles taking the most room.
 
+A title's poster can be chosen (`kura/posters.py`, `GET /titles/{id}/posters`, `PUT
+/titles/{id}/poster`) from TMDB's (`/tv/{id}/images` and `/movie/{id}/images`, in English,
+Japanese or without words, kept a day) and AniList's largest cover. The choice is kept in
+`titles.poster_choice`, apart from the poster the episode list brings, which a refresh updates;
+every reader takes `COALESCE(poster_choice, poster)`. The poster Kura wrote next to the show, as
+it wrote it, makes way for the new one.
+
 The title bar's search (`kura/search.py`, `GET /search?q=`) finds the library's anime by any
 name AniList says they go by, their episodes by code or name (the ones the library lacks too),
 and its videos by their files' names. Every word typed must be there, however a name is written:

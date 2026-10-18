@@ -34,6 +34,9 @@ shows these notes when it offers the update.
   English subtitles or delete them. A whole season ticks at once.
 - "At a glance" on Home: how long your library plays end to end, how much of it you've watched,
   what converting saved (or used, for the bigger picture), and the titles taking the most room.
+- Choose a title's poster: click it on its page for TMDB's posters (in English, Japanese or
+  without words) and AniList's cover. Your choice stays as the episode lists are refreshed, and
+  the poster next to the show follows it.
 
 ### Changed
 - Long names on the shelf's cards wrap onto a second line rather than trail off.

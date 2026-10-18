@@ -44,7 +44,8 @@ def write_artwork(
     refused = refused if refused is not None else {}
     roots = [Path(row["path"]) for row in conn.execute("SELECT path FROM folders")]
     titles = conn.execute(
-        """SELECT t.id, t.poster, t.backdrop FROM titles AS t
+        """SELECT t.id, COALESCE(t.poster_choice, t.poster) AS poster, t.backdrop
+           FROM titles AS t
            WHERE EXISTS (SELECT 1 FROM files AS f WHERE f.title_id = t.id AND f.gone_at IS NULL)
            ORDER BY t.id"""
     ).fetchall()

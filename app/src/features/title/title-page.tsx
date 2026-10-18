@@ -42,6 +42,7 @@ import { matches } from "@/lib/search";
 import { share } from "@/lib/share";
 import { cn } from "@/lib/utils";
 import { AboutPanel } from "./about-panel";
+import { PosterSheet } from "./poster-sheet";
 import { type Opened, VideoSheet } from "./video-sheet";
 
 /** One anime or film: how much of it is there, its seasons and episode map, what's missing, its
@@ -243,6 +244,7 @@ function Unfit({ count }: { count: number }) {
 
 function Header({ title, onAsk }: { title: TitleDetail; onAsk: (asking: Asking) => void }) {
   const navigate = useNavigate();
+  const [choosing, setChoosing] = useState(false); // its poster
   const explorer = useExplorer();
   const { play } = usePlayer();
   const playing = usePlayingFile();
@@ -269,7 +271,17 @@ function Header({ title, onAsk }: { title: TitleDetail; onAsk: (asking: Asking) 
       aria-label={title.name}
       className="flex animate-fade-up flex-wrap items-center gap-6 rounded-24 border border-edge bg-glass p-6 shadow-panel"
     >
-      <Poster title={title} className="w-30 shrink-0" />
+      <button
+        type="button"
+        onClick={() => setChoosing(true)}
+        className="group press relative w-30 shrink-0 cursor-pointer rounded-14"
+      >
+        <Poster title={title} />
+        <span className="absolute inset-x-2 bottom-2 inline-flex h-7 items-center justify-center rounded-full bg-tag font-bold text-12 text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+          Change poster
+        </span>
+      </button>
+      <PosterSheet title={title} open={choosing} onClose={() => setChoosing(false)} />
       <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex h-6.5 items-center rounded-full bg-accent px-2.5 font-extrabold text-12 text-on-accent">

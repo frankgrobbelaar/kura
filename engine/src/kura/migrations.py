@@ -378,4 +378,9 @@ MIGRATIONS: Final[tuple[str, ...]] = (
     ALTER TABLE files ADD COLUMN health_at TEXT;
     ALTER TABLE files ADD COLUMN health_problem TEXT;
     """,
+    # 27. The poster the owner chose for a title (kura/posters.py), over the one TMDB or AniList
+    #     gives it: a TMDB image path, or an AniList cover's address.
+    """
+    ALTER TABLE titles ADD COLUMN poster_choice TEXT;
+    """,
 )

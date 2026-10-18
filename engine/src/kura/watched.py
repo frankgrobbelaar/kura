@@ -141,7 +141,8 @@ def continuing(conn: sqlite3.Connection, limit: int = 12) -> list[Continuing]:
 
 def _continuing(conn: sqlite3.Connection, title_id: int, played_at: str) -> Continuing | None:
     title = conn.execute(
-        "SELECT name, kind, poster FROM titles WHERE id = ?", (title_id,)
+        "SELECT name, kind, COALESCE(poster_choice, poster) AS poster FROM titles WHERE id = ?",
+        (title_id,),
     ).fetchone()
     rows = conn.execute(
         """SELECT f.id, f.season, f.episode, f.episode_end, f.path,

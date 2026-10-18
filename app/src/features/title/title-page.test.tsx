@@ -509,6 +509,42 @@ describe("TitlePage", () => {
     expect(JSON.parse(String(init.body))).toEqual({ files: [1, 2] });
   });
 
+  it("chooses another poster from TMDB's and AniList's", async () => {
+    const option = (poster: string, language: string | null, source = "tmdb") => ({
+      poster,
+      address: `https://image.tmdb.org/t/p/w342${poster}`,
+      source,
+      language,
+      width: 1000,
+      height: 1500,
+    });
+    const fetch = renderTitle(DBZ, undefined, null, {
+      "/titles/1/posters": {
+        found: "/a.jpg",
+        chosen: "/c.jpg",
+        options: [option("/c.jpg", "ja"), option("/a.jpg", "en"), option("/b.jpg", null)],
+        problem: null,
+      },
+      "PUT /titles/1/poster": null,
+    });
+
+    (await screen.findByRole("button", { name: "Change poster" })).click();
+
+    const sheet = await screen.findByRole("dialog", { name: "Choose a poster" });
+    expect(
+      await within(sheet).findByRole("button", { name: "In use: TMDB · Japanese" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(sheet).getByRole("button", { name: "Back to the one Kura found" }),
+    ).toBeInTheDocument();
+    within(sheet).getByRole("button", { name: "Use TMDB · no words" }).click();
+
+    await waitFor(() => expect(sent(fetch, "PUT", "/titles/1/poster")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "PUT", "/titles/1/poster") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({ poster: "/b.jpg" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
   it("says which videos couldn't be deleted, and why", async () => {
     const open = "It's open in another app, maybe your player. Close it, then try again.";
     const stayed = {

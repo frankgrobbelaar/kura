@@ -194,7 +194,7 @@ def show_of(conn: sqlite3.Connection, title_id: int) -> Show | None:
         # AniList's list holds only the episodes aired so far, undated (save_anilist_title):
         # none of them is still to come.
         airing=bool(row["airing"]) and row["tmdb_id"] is not None,
-        poster=row["poster"],
+        poster=row["poster_choice"] or row["poster"],
         episodes=episodes,
     )
 
@@ -251,7 +251,7 @@ def _title(conn: sqlite3.Connection, row: sqlite3.Row, today: date) -> Title:
         year=row["year"],
         released=_day(row["released"]),
         airing=bool(row["airing"]),
-        poster=row["poster"],
+        poster=row["poster_choice"] or row["poster"],
         tmdb=f"{row['tmdb_type']}/{row['tmdb_id']}" if row["tmdb_id"] else None,
         anilist_id=row["anilist_id"],
         files=row["files"],

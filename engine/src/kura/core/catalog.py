@@ -236,6 +236,33 @@ def hits(answer: Json, media: Literal["tv", "movie"]) -> list[Hit]:
     return found
 
 
+@dataclass(frozen=True)
+class Picture:
+    """One of the posters TMDB has of a show or film."""
+
+    path: str  # TMDB's image path: "/abc.jpg"
+    language: str | None  # "en", "ja"; None for one without words
+    width: int
+    height: int
+    votes: float  # how TMDB's users rate it, 0 to 10
+
+
+def pictures(answer: Json) -> list[Picture]:
+    """The posters from /tv/{id}/images or /movie/{id}/images, the best rated first."""
+    found = [
+        Picture(
+            path=path,
+            language=fields.text(item, "iso_639_1") or None,
+            width=fields.whole(item, "width") or 0,
+            height=fields.whole(item, "height") or 0,
+            votes=fields.decimal(item, "vote_average") or 0.0,
+        )
+        for item in fields.mappings(answer, "posters")
+        if (path := fields.text(item, "file_path"))
+    ]
+    return sorted(found, key=lambda picture: -picture.votes)
+
+
 def alternative_titles(answer: Json) -> list[str]:
     """The other names TMDB knows a show or film by, from /tv/{id}/alternative_titles (in
     "results") or /movie/{id}/alternative_titles (in "titles")."""

@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 from kura.cache import DAY, Cache
 from kura.core import catalog
-from kura.core.catalog import Film, Hit, Show
+from kura.core.catalog import Film, Hit, Picture, Show
 from kura.core.fields import Json
 from kura.web import Send, Service, WebError, send
 
@@ -63,6 +63,19 @@ class Tmdb:
             if self._cache:
                 self._cache.put(key, answer)
         return catalog.alternative_titles(answer)
+
+    def pictures(self, media: Literal["tv", "movie"], item_id: int) -> list[Picture]:
+        """The posters TMDB has of a show or film, in English, Japanese or without words, the
+        best rated first. An answer is kept for a day."""
+        key = f"tmdb posters {media} {item_id}"
+        answer = self._cache.get(key, DAY) if self._cache else None
+        if answer is None:
+            answer = self._get(
+                f"/{media}/{item_id}/images", {"include_image_language": "en,ja,null"}
+            )
+            if self._cache:
+                self._cache.put(key, answer)
+        return catalog.pictures(answer)
 
     def show(self, show_id: int) -> Show | None:
         """A show with every episode of every season, specials included, or None if it's gone."""

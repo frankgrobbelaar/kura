@@ -944,6 +944,37 @@ export function usePositionNote() {
   );
 }
 
+/** A poster the owner can choose for a title. */
+export interface PosterOption {
+  /** What's kept: TMDB's image path, or AniList's cover address. */
+  poster: string;
+  /** Where the picture is, to show it. */
+  address: string;
+  source: "tmdb" | "anilist";
+  /** "en", "ja"; null for one without words (or AniList's). */
+  language: string | null;
+  width: number | null;
+  height: number | null;
+}
+
+/** The posters to choose from for a title, the one it has first. */
+export interface PosterChoices {
+  /** The poster TMDB or AniList gave it. */
+  found: string | null;
+  /** The owner's, when they chose one. */
+  chosen: string | null;
+  options: PosterOption[];
+  /** Why TMDB's or AniList's couldn't be asked for now. */
+  problem: string | null;
+}
+
+export const usePosterChoices = (titleId: number, enabled: boolean) =>
+  useEngineQuery<PosterChoices>(`/titles/${titleId}/posters`, undefined, enabled);
+/** Keeps the owner's choice of poster, or null for the one found:
+ * `{ path: "/titles/7/poster", body: { poster } }`. Every screen showing the poster follows. */
+export const useChoosePoster = () =>
+  useEngineAction<void>(["/titles", "/franchises", "/continue", "/coming", "/search"], "PUT");
+
 /** A title's About panel alone: a franchise's page shows its lead's. */
 export const useTitleAbout = (id: number, enabled = true) =>
   useEngineQuery<TitleAbout>(`/titles/${id}/about`, undefined, enabled);

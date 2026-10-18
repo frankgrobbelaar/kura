@@ -924,6 +924,52 @@
             }
           }
         }
+      },
+      "put": {
+        "summary": "Choose Poster",
+        "description": "Keeps the owner's choice of poster, or goes back to the one found. The poster next to the\nshow follows, when the owner has those.",
+        "operationId": "choose_poster_titles__title_id__poster_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "title_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Title Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/kura__api__posters__Chosen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/artwork": {
@@ -1403,6 +1449,51 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/titles/{title_id}/posters": {
+      "get": {
+        "summary": "Poster Choices",
+        "description": "The posters to choose from for a title: TMDB's (with the owner's key) and AniList's\ncover.",
+        "operationId": "poster_choices_titles__title_id__posters_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "title_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Title Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PosterChoices"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -3612,7 +3703,7 @@
           "method": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Chosen-Input"
+                "$ref": "#/components/schemas/kura__api__convert__Chosen"
               },
               {
                 "type": "null"
@@ -3955,14 +4046,6 @@
           "anilistId"
         ],
         "title": "Choice"
-      },
-      "Chosen-Input": {
-        "type": "string",
-        "enum": [
-          "best",
-          "fast",
-          "reencode"
-        ]
       },
       "Chosen-Output": {
         "properties": {
@@ -7057,6 +7140,121 @@
         ],
         "title": "Position"
       },
+      "PosterChoices": {
+        "properties": {
+          "found": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Found"
+          },
+          "chosen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PosterOption"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          }
+        },
+        "type": "object",
+        "required": [
+          "found",
+          "chosen",
+          "options",
+          "problem"
+        ],
+        "title": "PosterChoices"
+      },
+      "PosterOption": {
+        "properties": {
+          "poster": {
+            "type": "string",
+            "title": "Poster"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "tmdb",
+              "anilist"
+            ],
+            "title": "Source"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "poster",
+          "address",
+          "source",
+          "language",
+          "width",
+          "height"
+        ],
+        "title": "PosterOption"
+      },
       "ProposedChange": {
         "properties": {
           "kind": {
@@ -9671,6 +9869,14 @@
         ],
         "title": "WaitingFile"
       },
+      "kura__api__convert__Chosen": {
+        "type": "string",
+        "enum": [
+          "best",
+          "fast",
+          "reencode"
+        ]
+      },
       "kura__api__convert__MoveRequest": {
         "properties": {
           "before": {
@@ -9701,6 +9907,26 @@
           "folder"
         ],
         "title": "MoveRequest"
+      },
+      "kura__api__posters__Chosen": {
+        "properties": {
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster"
+          }
+        },
+        "type": "object",
+        "required": [
+          "poster"
+        ],
+        "title": "Chosen"
       },
       "kura__scan__State": {
         "type": "string",

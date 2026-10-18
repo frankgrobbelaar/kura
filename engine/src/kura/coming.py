@@ -58,7 +58,7 @@ def _ahead(conn: sqlite3.Connection, today: date) -> list[sqlite3.Row]:
     of the library's covers, in order."""
     return conn.execute(
         """SELECT e.title_id, e.season, e.number, e.name, e.aired, t.name AS title, t.kind,
-                  t.poster, a.told_at AS told
+                  COALESCE(t.poster_choice, t.poster) AS poster, a.told_at AS told
            FROM episodes AS e JOIN titles AS t ON t.id = e.title_id
            LEFT JOIN aired_told AS a
              ON a.title_id = e.title_id AND a.season = e.season AND a.number = e.number

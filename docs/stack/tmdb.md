@@ -41,14 +41,16 @@ Kura works without a key: it still identifies each anime with AniList, without e
 | `GET /3/tv/{id}`, then again with `append_to_response=season/0,season/1,…` (20 at most per request) | A show with every episode of every season |
 | `GET /3/movie/{id}` | A film |
 | `GET /3/tv/{id}/alternative_titles`, `GET /3/movie/{id}/alternative_titles` | The other names a show or film goes by, when a name AniList can't find leads TMDB to it |
+| `GET /3/tv/{id}/images`, `GET /3/movie/{id}/images` with `include_image_language=en,ja,null` | The posters to choose from for a title (kept a day) |
 | `https://image.tmdb.org/t/p/w342{poster_path}` | A poster |
 
 [kura/core/catalog.py](../../engine/src/kura/core/catalog.py) turns the answers into plain
 values (`Show`, `Episode`, `Film`, `Hit`). Besides the episode list, a show's and a film's
 answers carry what a title's About panel shows, which Kura keeps on the title's row: its
 synopsis (`overview`), genres (animation goes without saying), the first of its
-`production_companies`, its status in Kura's words (finished, airing, coming, cancelled), its
-`last_air_date` and its `episode_run_time` (a film's `runtime`), and each episode's own
+`production_companies`, its status in Kura's words (finished, airing, coming, cancelled; a film
+being made is coming), its latest episode so far (of its seasons: `last_air_date` can be a
+special's, years on) and its `episode_run_time` (a film's `runtime`), and each episode's own
 `overview`, which an episode's details show. Films are looked up again weekly, as finished
 shows' lists are, so what's kept of them stays current too.
 

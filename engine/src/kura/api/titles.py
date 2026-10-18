@@ -350,7 +350,9 @@ def title_report(title_id: int, conn: Database) -> Report:
 )
 def title_poster(title_id: int, conn: Database, paths: Paths, web: Web) -> FileResponse:
     """The title's poster, fetched once from TMDB or AniList and then kept."""
-    row = conn.execute("SELECT poster FROM titles WHERE id = ?", (title_id,)).fetchone()
+    row = conn.execute(
+        "SELECT COALESCE(poster_choice, poster) AS poster FROM titles WHERE id = ?", (title_id,)
+    ).fetchone()
     kept = artwork.poster(paths, row["poster"], web) if row is not None else None
     if kept is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This title has no poster yet.")
