@@ -8,6 +8,8 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-19
+
 ### Changed
 - A video's or an episode's details open in a card over the page rather than a panel at its
   side, with a picture from the episode across its top (TMDB's, or a frame from the video) and
