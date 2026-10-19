@@ -8,6 +8,8 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+## 1.2.0 - 2026-10-19
+
 ### Changed
 - A picture from an episode you haven't watched stays blurred till you ask ("Show the
   picture", and you can hide it again), as what happens in it does, since it can give the story
