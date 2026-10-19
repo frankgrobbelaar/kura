@@ -26,17 +26,23 @@ and [../CLAUDE.md](../CLAUDE.md).
   `page-top`, so it stays put while the rest scrolls under it.
 - Say what a thing does, never which media server reads it: no "Plex" anywhere in the UI.
 - Markdown (Kura's reports) shows through `components/markdown.tsx`, as a reader sees it.
-- More about one thing, a title the library lacks say, opens in a side sheet
-  (`components/ui/sheet.tsx`): from the window's right, below the title bar, the page dimming
-  behind it, closed by Escape, its cross or a click beside it. A synopsis, genres, facts and
+- More about one thing, a title the library lacks say, opens in a card over the page
+  (`components/ui/dialog.tsx`): below the title bar, the page dimming behind it, closed by Escape,
+  its cross or a click beside it. The card itself takes the focus as it opens, not its first
+  button. One that has a picture carries it across its top (`DialogPicture`: a still, or a cover
+  blurred into a backdrop; the featured blue and its orb when there's none), its cross on the
+  picture; one without has a header (`DialogHeader`). A long card scrolls inside its body, its
+  foot (`DialogFooter`) staying put. A synopsis, genres, facts and
   "On AniList" / "On TMDB" come from `components/about.tsx`; the shell opens those pages by
   number (`lib/links.ts`), as the window can't open addresses itself. Panels with a heading are
   `components/panel.tsx`.
 - Wherever a video file shows, its row's "More" menu (`components/ui/menu.tsx`, Radix's dropdown)
   has "Show in folder" and "Copy path" (`components/file-actions.tsx`), with a line under the row
   saying how that went; deleting sits last, apart, as "Delete…". A title's videos and episodes
-  open in full in a side sheet (`features/title/video-sheet.tsx`), what happens in an episode
-  hidden till asked, as it gives the story away.
+  open in full in a card (`features/title/video-details.tsx`) with a picture from the episode
+  across its top (`useFilePicture`, `useEpisodePicture`) and Play on it, what happens in an
+  episode hidden till asked behind a blur of its words' shapes (as it gives the story away), and
+  the video or episode before and after it at its foot, in the order the page lists them.
 - Lists of titles group them by type, series, movies, OVAs then specials (`KIND_ORDER` in
   `lib/kinds.ts`), through `components/title-groups.tsx`, except in the orders that look across
   types ("Recently added", "Most missing").

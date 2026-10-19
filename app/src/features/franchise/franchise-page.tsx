@@ -10,7 +10,14 @@ import { SortControl } from "@/components/sort-control";
 import { StatusShape } from "@/components/status";
 import { TitleCard } from "@/components/title-card";
 import { byKind, CardGrid, groupsByType, orderWords, together } from "@/components/title-groups";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogPicture,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   type FranchiseSummary,
   type MissingTitle,
@@ -18,6 +25,7 @@ import {
   type TitleSort,
   type TitleSummary,
   useCover,
+  useCoverPicture,
   useFranchise,
   useFranchiseMissing,
   useTitleAbout,
@@ -95,7 +103,7 @@ export function FranchisePage() {
     <>
       <Breadcrumb trail={[LIBRARY]} current={found.name} />
       <Header franchise={found} />
-      <MissingSheet title={opened} franchise={found.name} onClose={() => setOpened(null)} />
+      <MissingDetails title={opened} franchise={found.name} onClose={() => setOpened(null)} />
       <EngineProblem queries={[franchise]} />
       <section
         aria-labelledby="franchise-titles"
@@ -185,52 +193,75 @@ function byRelease(a: Shelved, b: Shelved): number {
   return a.released < b.released ? -1 : 1;
 }
 
-/** What AniList knows of a title the library has no part of: its cover and what it is, its
- * synopsis, and its page there. */
-function MissingSheet(props: {
+/** What AniList knows of a title the library has no part of, in a card over the franchise's page:
+ * its cover across the top, blurred, with the cover itself in its dotted place beside its name;
+ * what it is, its synopsis, and its page there. */
+function MissingDetails(props: {
   title: MissingTitle | null;
   franchise: string;
   onClose: () => void;
 }) {
   const { title } = props;
-  const cover = useCover(title?.cover ?? null);
+  const picture = useCoverPicture(title?.cover ?? null);
+  const cover = picture.address;
   return (
-    <Sheet open={title !== null} onOpenChange={(open) => !open && props.onClose()}>
+    <Dialog open={title !== null} onOpenChange={(open) => !open && props.onClose()}>
       {title && (
-        <SheetContent title={title.name} description={missingFacts(title)}>
-          <div className="flex items-start gap-4">
-            <div className="relative aspect-[2/3] w-24 shrink-0 overflow-hidden rounded-14 border-2 border-missing border-dotted">
-              {cover && (
-                <img src={cover} alt="" className="absolute inset-0 size-full object-cover" />
-              )}
+        <DialogContent className="w-[min(36rem,calc(100vw-2rem))]">
+          <DialogPicture
+            src={cover}
+            none={!title.cover || picture.problem !== null}
+            blur
+            tag={kindWord(title.kind)}
+          >
+            <div className="flex min-w-0 items-end gap-4">
+              <div
+                className={cn(
+                  "relative aspect-[2/3] w-20 shrink-0 overflow-hidden rounded-12 border-2 border-dotted bg-surface",
+                  title.coming ? "border-missing/40" : "border-missing",
+                )}
+              >
+                {cover && (
+                  <img src={cover} alt="" className="absolute inset-0 size-full object-cover" />
+                )}
+              </div>
+              <div className="flex min-w-0 flex-col gap-0.5 pb-0.5">
+                <span className="truncate font-bold text-12 text-fg-soft">{props.franchise}</span>
+                <DialogTitle className="line-clamp-2 text-24 tracking-[-0.02em]">
+                  {title.name}
+                </DialogTitle>
+              </div>
             </div>
-            <div className="flex min-w-0 flex-col gap-3">
-              <span className="inline-flex h-6 items-center gap-1.5 self-start rounded-full bg-tint/6 px-2.25 font-bold text-11">
+          </DialogPicture>
+          <DialogBody>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-tint/6 px-2.5 font-extrabold text-11">
                 <StatusShape state={title.coming ? "upcoming" : "missing"} className="size-2" />
                 {title.coming ? "Coming" : "Not in your library"}
               </span>
-              <Facts
-                facts={[
-                  ["Studio", title.studio],
-                  ["Status", statusWords(standing(title), title.kind)],
-                ]}
-              />
-              <Genres genres={title.genres} />
+              <DialogDescription>{missingFacts(title)}</DialogDescription>
             </div>
-          </div>
-          {title.overview ? (
-            <Synopsis text={title.overview} lines={6} />
-          ) : (
-            <p className="text-13 text-fg-muted">AniList has no synopsis of it yet.</p>
-          )}
-          <p className="text-13 text-fg-muted">
-            AniList ties it to {props.franchise} by story. It's here so you know the franchise has
-            it.
-          </p>
-          <ElsewhereLinks anilistId={title.anilistId} />
-        </SheetContent>
+            <Facts
+              facts={[
+                ["Studio", title.studio],
+                ["Status", statusWords(standing(title), title.kind)],
+              ]}
+            />
+            <Genres genres={title.genres} />
+            {title.overview ? (
+              <Synopsis text={title.overview} lines={6} />
+            ) : (
+              <p className="text-13 text-fg-muted">AniList has no synopsis of it yet.</p>
+            )}
+            <p className="text-13 text-fg-muted">
+              AniList ties it to {props.franchise} by story. It's here so you know the franchise has
+              it.
+            </p>
+            <ElsewhereLinks anilistId={title.anilistId} />
+          </DialogBody>
+        </DialogContent>
       )}
-    </Sheet>
+    </Dialog>
   );
 }
 

@@ -616,8 +616,8 @@ def save_show(
         title_id: int = row["id"]
         conn.execute("DELETE FROM episodes WHERE title_id = ?", (title_id,))
         conn.executemany(
-            "INSERT INTO episodes (title_id, season, number, name, aired, minutes, overview)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO episodes (title_id, season, number, name, aired, minutes, overview, still)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     title_id,
@@ -627,6 +627,7 @@ def save_show(
                     e.aired.isoformat() if e.aired else None,
                     e.minutes,
                     e.overview,
+                    e.still,
                 )
                 for e in show.episodes
             ],

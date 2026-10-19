@@ -26,7 +26,7 @@ class DataPaths:
 
     @property
     def artwork(self) -> Path:
-        """Posters, downloaded once (see kura/artwork.py)."""
+        """Posters and pictures from TMDB and AniList, downloaded once (see kura/artwork.py)."""
         return self.root / "artwork"
 
     @property

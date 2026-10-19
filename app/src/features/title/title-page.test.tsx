@@ -551,14 +551,14 @@ describe("TitlePage", () => {
 
     (await screen.findByRole("button", { name: "Change poster" })).click();
 
-    const sheet = await screen.findByRole("dialog", { name: "Choose a poster" });
+    const card = await screen.findByRole("dialog", { name: "Choose a poster" });
     expect(
-      await within(sheet).findByRole("button", { name: "In use: TMDB · Japanese" }),
+      await within(card).findByRole("button", { name: "In use: TMDB · Japanese" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
-      within(sheet).getByRole("button", { name: "Back to the one Kura found" }),
+      within(card).getByRole("button", { name: "Back to the one Kura found" }),
     ).toBeInTheDocument();
-    within(sheet).getByRole("button", { name: "Use TMDB · no words" }).click();
+    within(card).getByRole("button", { name: "Use TMDB · no words" }).click();
 
     await waitFor(() => expect(sent(fetch, "PUT", "/titles/1/poster")).toHaveLength(1));
     const [[, init]] = sent(fetch, "PUT", "/titles/1/poster") as [[unknown, RequestInit]];
@@ -1043,13 +1043,13 @@ describe("TitlePage", () => {
 
     await fromMenu("More for S01E01", "Details");
 
-    const sheet = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
-    expect(sheet).toHaveTextContent("Dragon Ball Z · aired 26 Apr 1989");
-    expect(sheet).toHaveTextContent("What happens in it stays hidden: it gives the story away.");
-    expect(sheet).not.toHaveTextContent(DETAILS.overview ?? "");
-    within(sheet).getByRole("button", { name: "Show what happens" }).click();
-    expect(await within(sheet).findByText(DETAILS.overview ?? "")).toBeInTheDocument();
-    const file = within(sheet).getByRole("region", { name: "The file" });
+    const card = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    expect(card).toHaveTextContent("Dragon Ball Z · aired 26 Apr 1989");
+    // A blur stands in for what happens: nothing of it is on the page till asked.
+    expect(card).not.toHaveTextContent(DETAILS.overview ?? "");
+    within(card).getByRole("button", { name: "Show what happens" }).click();
+    expect(await within(card).findByText(DETAILS.overview ?? "")).toBeInTheDocument();
+    const file = within(card).getByRole("region", { name: "The file" });
     expect(file).toHaveTextContent("640 × 480 · H.264 8-bit · 23.98 fps");
     expect(file).toHaveTextContent("Japanese · AAC stereo");
     expect(file).toHaveTextContent("English · in it");
@@ -1073,16 +1073,20 @@ describe("TitlePage", () => {
 
     // The video's name opens its details too.
     (await screen.findByTitle(DETAILS.path)).click();
-    const sheet = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
-    within(sheet).getByRole("button", { name: "Show in folder" }).click();
+    const card = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    within(card).getByRole("button", { name: "Show in folder" }).click();
     await waitFor(() =>
       expect(shell.invoke).toHaveBeenCalledWith("show_in_folder", { path: DETAILS.path }),
     );
-    within(sheet).getByRole("button", { name: "Copy path" }).click();
+    fireEvent.keyDown(within(card).getByRole("button", { name: "More for S01E01" }), {
+      key: "Enter",
+    });
+    (await screen.findByRole("menuitem", { name: "Copy path" })).click();
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(DETAILS.path));
-    expect(await within(sheet).findByText("Its path is copied.")).toBeInTheDocument();
+    expect(await within(card).findByText("Its path is copied.")).toBeInTheDocument();
 
-    within(sheet).getByRole("button", { name: "Play" }).click();
+    // Play sits on the picture.
+    within(card).getByRole("button", { name: "Play" }).click();
     const player = await screen.findByRole("region", { name: "Player" });
     expect(player).toHaveTextContent("Dragon Ball Z · S01E01");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -1137,19 +1141,21 @@ describe("TitlePage", () => {
 
     (await screen.findByTitle("S04E33 · episode 72 · Next Week · still to air")).click();
 
-    const sheet = await screen.findByRole("dialog", { name: "S04E33 · Next Week" });
-    expect(await within(sheet).findByText("Not out yet")).toBeInTheDocument();
-    expect(sheet).toHaveTextContent("Dragon Ball Z · airs 1 Jan 2099");
+    const card = await screen.findByRole("dialog", { name: "S04E33 · Next Week" });
+    expect(await within(card).findByText("Not out yet")).toBeInTheDocument();
+    expect(card).toHaveTextContent("Airs 1 Jan 2099 · 24 min");
   });
 
-  it("gives the focus back to what opened its details once they close", async () => {
+  it("opens with the card itself in focus, and gives the focus back once it closes", async () => {
     renderTitle(DBZ, undefined, null, { "/files/1": DETAILS });
 
     const name = await screen.findByRole("button", { name: "Episode 1" });
     name.focus();
     name.click();
-    const sheet = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
-    fireEvent.keyDown(sheet, { key: "Escape" });
+    const card = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    // Not its cross: nothing in it looks picked before anything is.
+    await waitFor(() => expect(document.activeElement).toBe(card));
+    fireEvent.keyDown(card, { key: "Escape" });
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     await waitFor(() => expect(document.activeElement).toBe(name));
@@ -1179,24 +1185,158 @@ describe("TitlePage", () => {
 
     const map = await screen.findByRole("region", { name: "Episode map" });
     within(map).getByTitle("S04E11 · episode 50 · The Ginyu Force · missing").click();
-    let sheet = await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" });
-    expect(await within(sheet).findByText("Not in your library")).toBeInTheDocument();
-    expect(within(sheet).getByRole("button", { name: "Show what happens" })).toBeInTheDocument();
-    expect(within(sheet).queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
-    within(sheet).getByRole("button", { name: "Close" }).click();
+    let card = await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" });
+    expect(await within(card).findByText("Not in your library")).toBeInTheDocument();
+    expect(card).toHaveTextContent("Aired 1 Jan 1991 · 24 min");
+    expect(within(card).getByRole("button", { name: "Show what happens" })).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
+    within(card).getByRole("button", { name: "Close" }).click();
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     // The same episode from the list of what's missing, then a special from its own.
     screen.getByRole("button", { name: /Episode 50 · The Ginyu Force · missing/ }).click();
-    sheet = await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" });
-    within(sheet).getByRole("button", { name: "Close" }).click();
+    card = await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" });
+    within(card).getByRole("button", { name: "Close" }).click();
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     screen.getByRole("button", { name: /Plan to Eradicate/ }).click();
-    sheet = await screen.findByRole("dialog", { name: "S00E02 · Plan to Eradicate" });
-    expect(await within(sheet).findByText("Not in your library")).toBeInTheDocument();
+    card = await screen.findByRole("dialog", { name: "S00E02 · Plan to Eradicate" });
+    expect(await within(card).findByText("Not in your library")).toBeInTheDocument();
+    expect(card).toHaveTextContent("Special · S00E02");
     expect(
-      within(sheet).queryByRole("button", { name: "Show what happens" }),
+      within(card).queryByRole("button", { name: "Show what happens" }),
     ).not.toBeInTheDocument();
+    // A special goes on among the specials.
+    expect(within(card).getByRole("button", { name: "Previous: S00E01 · Bardock" })).toBeVisible();
+    expect(within(card).queryByRole("button", { name: /^Next/ })).not.toBeInTheDocument();
+  });
+
+  it("goes to the episode before or after it from its card, the keyboard keeping its place", async () => {
+    renderTitle(DBZ, undefined, null, {
+      "/titles/1/episodes/4/11": {
+        season: 4,
+        number: 11,
+        name: "The Ginyu Force",
+        aired: "1991-01-01",
+        overview: "Five strangers strike a pose.",
+        minutes: 24,
+        fileId: null,
+      },
+      "/titles/1/episodes/4/12": {
+        season: 4,
+        number: 12,
+        name: "Episode 12",
+        aired: "1991-01-08",
+        overview: "A stranger asks the way.",
+        minutes: 24,
+        fileId: null,
+      },
+    });
+
+    const map = await screen.findByRole("region", { name: "Episode map" });
+    within(map).getByTitle("S04E11 · episode 50 · The Ginyu Force · missing").click();
+    const card = await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" });
+    expect(
+      within(card).getByRole("button", { name: "Previous: S04E10 · Episode 10" }),
+    ).toBeVisible();
+    within(card).getByRole("button", { name: "Show what happens" }).click();
+    const next = within(card).getByRole("button", { name: "Next: S04E12 · Episode 12" });
+    next.focus();
+    next.click();
+
+    expect(await screen.findByRole("dialog", { name: "S04E12 · Episode 12" })).toBe(card);
+    expect(document.activeElement).toBe(next);
+    expect(next).toHaveAccessibleName("Next: S04E13 · Episode 13");
+    // The next episode's story is hidden again till asked.
+    expect(await within(card).findByRole("button", { name: "Show what happens" })).toBeVisible();
+    expect(card).not.toHaveTextContent("A stranger asks the way.");
+    within(card).getByRole("button", { name: "Previous: S04E11 · The Ginyu Force" }).click();
+    expect(await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" })).toBe(card);
+  });
+
+  it("keeps the keyboard's place in the card: its story's button, its menu, its last step", async () => {
+    renderTitle(DBZ, undefined, null, {
+      "/files/1": DETAILS,
+      "/files/9": { ...DETAILS, id: 9, season: 0, episode: 1, episodeName: "Bardock" },
+      "/titles/1/episodes/0/2": {
+        season: 0,
+        number: 2,
+        name: "Plan to Eradicate",
+        aired: "1993-08-06",
+        overview: null,
+        minutes: 52,
+        fileId: null,
+      },
+    });
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+
+    const name = await screen.findByRole("button", { name: "Episode 1" });
+    name.focus();
+    name.click();
+    let card = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    // Shown and hidden again, the focus staying on the button as it turns.
+    const show = await within(card).findByRole("button", { name: "Show what happens" });
+    show.focus();
+    show.click();
+    await waitFor(() => expect(document.activeElement).toHaveAccessibleName("Hide what happens"));
+    // The card's own menu, then Escape: the focus goes back to what opened the card.
+    fireEvent.keyDown(within(card).getByRole("button", { name: "More for S01E01" }), {
+      key: "Enter",
+    });
+    (await screen.findByRole("menuitem", { name: "Copy path" })).click();
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    fireEvent.keyDown(card, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(document.activeElement).toBe(name));
+
+    // The specials' first, then on to their last: the focus moves to the step that's left.
+    screen.getByRole("button", { name: /Bardock/ }).click();
+    card = await screen.findByRole("dialog", { name: "S00E01 · Bardock" });
+    const next = within(card).getByRole("button", { name: "Next: S00E02 · Plan to Eradicate" });
+    next.focus();
+    next.click();
+    await screen.findByRole("dialog", { name: "S00E02 · Plan to Eradicate" });
+    await waitFor(() =>
+      expect(document.activeElement).toHaveAccessibleName("Previous: S00E01 · Bardock"),
+    );
+  });
+
+  it("goes through the title's videos in the page's order from a video's card", async () => {
+    const second = video(2, 1, 2, "Dragon Ball Z - S01E02");
+    renderTitle({ ...DBZ, videos: [...DBZ.videos, second] }, undefined, null, {
+      "/files/1": DETAILS,
+      "/files/2": { ...DETAILS, id: 2, episode: 2, episodeName: "The Search", path: second.path },
+    });
+
+    await fromMenu("More for S01E01", "Details");
+    const card = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    expect(within(card).queryByRole("button", { name: /^Previous/ })).not.toBeInTheDocument();
+    within(card).getByRole("button", { name: "Next: S01E02 · Episode 2" }).click();
+
+    expect(await screen.findByRole("dialog", { name: "S01E02 · The Search" })).toBe(card);
+    expect(
+      within(card).getByRole("button", { name: "Previous: S01E01 · Episode 1" }),
+    ).toBeVisible();
+  });
+
+  it("shows a picture from the episode across the top of its card, Play on it", async () => {
+    const shown = vi.fn(() => "blob:the-picture");
+    Object.defineProperty(URL, "createObjectURL", { value: shown, configurable: true });
+    Object.defineProperty(URL, "revokeObjectURL", { value: () => {}, configurable: true });
+    const stopped = { ...(DBZ.videos[0] as TitleDetail["videos"][number]), resume: 610 };
+    renderTitle({ ...DBZ, videos: [stopped] }, undefined, null, {
+      "/files/1": DETAILS,
+      "/files/1/picture": () => new Response(new Blob(["jpeg"], { type: "image/jpeg" })),
+    });
+
+    await fromMenu("More for S01E01", "Details");
+    const card = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+
+    await waitFor(() =>
+      expect(card.querySelector("img")?.getAttribute("src")).toBe("blob:the-picture"),
+    );
+    expect(within(card).getByRole("button", { name: "Play from 10:10" })).toBeVisible();
+    expect(card).toHaveTextContent("Dragon Ball Z · aired 26 Apr 1989 · 14 min left");
   });
 
   it("says why a video won't play in its details, and offers no Play", async () => {
@@ -1208,9 +1348,9 @@ describe("TitlePage", () => {
 
     await fromMenu("More for S01E01", "Details");
 
-    const sheet = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
-    expect(await within(sheet).findByText("It won't play: No video stream")).toBeInTheDocument();
-    expect(within(sheet).queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
-    expect(within(sheet).getByRole("button", { name: "Show in folder" })).toBeInTheDocument();
+    const card = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    expect(await within(card).findByText("It won't play: No video stream")).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Show in folder" })).toBeInTheDocument();
   });
 });

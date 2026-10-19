@@ -316,13 +316,13 @@ describe("HomePage", () => {
 
     (await screen.findByRole("button", { name: /2 videos didn't play/ })).click();
 
-    const sheet = await screen.findByRole("dialog", { name: "Videos that didn't play" });
-    const [first, second] = within(sheet).getAllByRole("listitem") as [HTMLElement, HTMLElement];
+    const card = await screen.findByRole("dialog", { name: "Videos that didn't play" });
+    const [first, second] = within(card).getAllByRole("listitem") as [HTMLElement, HTMLElement];
     expect(first).toHaveTextContent("Cowboy Bebop · S01E04");
     expect(first).toHaveTextContent("It didn't play at 12:05");
     within(first).getByRole("button", { name: "Try again" }).click();
     expect(
-      await within(sheet).findByText(
+      await within(card).findByText(
         "Cowboy Bebop · S01E04 played this time, so it's off the list.",
       ),
     ).toBeInTheDocument();

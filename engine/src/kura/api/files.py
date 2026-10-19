@@ -1,13 +1,16 @@
 """One video in full, for its details: what it holds, where it is, the episode it is, and what
-converting it to the standard does; and an episode's own details, the library's or not."""
+converting it to the standard does; and an episode's own details, the library's or not. Each with
+a picture for the top of its details."""
 
 import json
 from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import FileResponse
 
-from kura.api.common import ApiModel, Database
+from kura import artwork, pictures
+from kura.api.common import ApiModel, Database, Paths, Toolbox, Web
 from kura.core.languages import beside_language
 from kura.core.media import MediaInfo, media_from_ffprobe
 from kura.core.plan import sidecars_of
@@ -206,6 +209,46 @@ def episode_details(title_id: int, season: int, number: int, conn: Database) -> 
         overview=row["overview"],
         minutes=row["minutes"],
         file_id=video["id"] if video else None,
+    )
+
+
+@router.get(
+    "/files/{file_id}/picture",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/jpeg": {}, "image/png": {}}}},
+)
+def file_picture(
+    file_id: int, conn: Database, paths: Paths, web: Web, toolbox: Toolbox
+) -> FileResponse:
+    """A picture for the top of a video's details: TMDB's from its episode, a frame from the
+    file, or its show's wide picture. Fetched or taken once, then kept."""
+    kept = pictures.of_file(conn, paths, web, toolbox.path("ffmpeg"), file_id)
+    if kept is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "There's no picture of this video yet.")
+    return _fresh(kept)
+
+
+@router.get(
+    "/titles/{title_id}/episodes/{season}/{number}/picture",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/jpeg": {}, "image/png": {}}}},
+)
+def episode_picture(
+    title_id: int, season: int, number: int, conn: Database, paths: Paths, web: Web
+) -> FileResponse:
+    """A picture for the top of an episode's details, the library's or not: TMDB's from the
+    episode, or its show's wide picture. Fetched once, then kept."""
+    kept = pictures.of_episode(conn, paths, web, title_id, season, number)
+    if kept is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "There's no picture of this episode yet.")
+    return _fresh(kept)
+
+
+def _fresh(kept: Path) -> FileResponse:
+    """A picture the window asks for again each time: the one behind an address changes, as a
+    match changes or TMDB's picture comes in place of a frame."""
+    return FileResponse(
+        kept, media_type=artwork.media_type(kept), headers={"Cache-Control": "no-cache"}
     )
 
 

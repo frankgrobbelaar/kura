@@ -49,7 +49,7 @@ def tv_details(
         episodes: list[Json] = []
         for episode in range(1, size + 1):
             day = dated.get((number, episode), day)
-            episodes.append(_episode(number, episode, day, named.get((number, episode))))
+            episodes.append(_episode(show_id, number, episode, day, named.get((number, episode))))
             day += timedelta(days=7)
         answer[f"season/{number}"] = {"season_number": number, "episodes": episodes}
     if specials:
@@ -57,7 +57,7 @@ def tv_details(
         answer["season/0"] = {
             "season_number": 0,
             "episodes": [
-                _episode(0, n, days[min(n - 1, len(days) - 1)], named.get((0, n)))
+                _episode(show_id, 0, n, days[min(n - 1, len(days) - 1)], named.get((0, n)))
                 for n in range(1, specials + 1)
             ],
         }
@@ -114,13 +114,14 @@ def movie_search(*results: tuple[int, str, date | None]) -> dict[str, object]:
     }
 
 
-def _episode(season: int, number: int, aired: date, title: str | None) -> Json:
+def _episode(show_id: int, season: int, number: int, aired: date, title: str | None) -> Json:
     return {
         "season_number": season,
         "episode_number": number,
         "name": title or f"Episode {number}",
         "air_date": aired.isoformat(),
         "runtime": 24,
+        "still_path": f"/still-{show_id}-{season}-{number}.jpg",
     }
 
 

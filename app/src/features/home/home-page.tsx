@@ -30,7 +30,7 @@ import { ContinueWatching } from "./continue-watching";
 import { Glance } from "./glance";
 import { Recovered } from "./recovered";
 import { Shelf } from "./shelf";
-import { UnplayedSheet } from "./unplayed";
+import { UnplayedDialog } from "./unplayed";
 
 export function HomePage() {
   const engine = useEngine();
@@ -116,7 +116,7 @@ export function HomePage() {
         />
       )}
       {working && !empty && <Shelf sort={sort} onSort={setSort} query={query} onQuery={setQuery} />}
-      <UnplayedSheet open={unplayed} onClose={() => setUnplayed(false)} />
+      <UnplayedDialog open={unplayed} onClose={() => setUnplayed(false)} />
     </>
   );
 }

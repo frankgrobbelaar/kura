@@ -169,6 +169,18 @@ def test_a_tmdb_show_says_what_its_about_panel_shows():
     ]
 
 
+def test_a_tmdb_episode_has_a_picture_from_it_when_tmdb_does():
+    details = tv_details(9, "Starfall Academy", (2,), first_aired=date(2019, 4, 3))
+    season = cast("dict[str, list[dict[str, object]]]", details["season/1"])
+    season["episodes"][0]["still_path"] = "/still-9-1-1.jpg"
+    season["episodes"][1]["still_path"] = None
+
+    found = show(details)
+
+    assert found is not None
+    assert [episode.still for episode in found.episodes] == ["/still-9-1-1.jpg", None]
+
+
 def test_a_tmdb_status_is_said_in_kuras_words():
     def standing(status: str) -> str | None:
         details = tv_details(9, "Starfall", (1,), first_aired=date(2019, 4, 3), status=status)

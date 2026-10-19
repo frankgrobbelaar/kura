@@ -51,7 +51,9 @@ synopsis (`overview`), genres (animation goes without saying), the first of its
 `production_companies`, its status in Kura's words (finished, airing, coming, cancelled; a film
 being made is coming), its latest episode so far (of its seasons: `last_air_date` can be a
 special's, years on) and its `episode_run_time` (a film's `runtime`), and each episode's own
-`overview`, which an episode's details show. Films are looked up again weekly, as finished
+`overview` and `still_path`, which an episode's details show: the still comes from the image
+server at its own size (`original`; TMDB's other sizes of a still are 300 wide at most), once,
+when a card first shows it. Films are looked up again weekly, as finished
 shows' lists are, so what's kept of them stays current too.
 
 ## When AniList can't find a name

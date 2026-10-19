@@ -30,7 +30,8 @@ folder from any list, what each title is about, watched and picked up where it s
 Continue watching and Coming up on Home, the overnight health check, ticks on a title's videos,
 the library at a glance and a poster of the owner's choosing. Kura 0.1.0, the first release,
 went out on 2026-10-12, and 1.0.0, the first meant for everyday use, on 2026-10-18;
-CHANGELOG.md has every release since. Everything in [What's next](#whats-next) is built.
+CHANGELOG.md has every release since. Since 1.0, details open as a card with a picture from the
+episode (What's next, 14). Everything in [What's next](#whats-next) is built.
 
 ## Ground rules
 
@@ -319,9 +320,9 @@ Everything decided so far. Don't ask again; change only with the owner.
   eight from a list Claude offered:
   - Wherever a video is listed (a title's videos, the queue, "Which anime is this?", Tidy up's
     changes and copies), its ⋮ menu has "Show in folder" and "Copy path"; deleting moved into it
-    as "Delete…", last and apart. A title's videos and episodes open in a side sheet: the
-    episode's title and air date, what happens in it (hidden till asked: it gives the story
-    away), the file's tracks, length, size, place and what converting it does. An episode the
+    as "Delete…", last and apart. A title's videos and episodes open in full (as a card since
+    2026-10-19, below): the episode's title and air date, what happens in it (hidden till asked:
+    it gives the story away), the file's tracks, length, size, place and what converting it does. An episode the
     library lacks opens from the episode map (a list the arrow keys go along) or the missing list,
     one still to come saying "Not out yet".
   - A title's page has About: TMDB's synopsis first (written for English readers), AniList's
@@ -358,6 +359,18 @@ Everything decided so far. Don't ask again; change only with the owner.
   - A title's poster opens "Choose a poster": TMDB's (English, Japanese or without words) and
     AniList's largest cover. The choice is kept apart from the poster an episode list brings, so a
     refresh never undoes it; every screen and the poster next to the show follow it.
+- Details as a card with its picture (the owner, 2026-10-19: "I am not liking this sidepanel",
+  then "Go with B - A card with its picture", of three drawn on the
+  [Kura Detail Options](https://claude.ai/artifact/6rp1m1fFNX5SmEKhDhgt7F) canvas beside A, a peek
+  beside what was clicked, and C, the page opening up in place): what told more of one thing in a
+  sheet at the window's side opens in a card over the page instead, the page dimming behind it.
+  A video's or episode's has a picture from the episode across its top (TMDB's still, else a
+  frame from the video, else its show's wide picture; the featured blue and its orb when there's
+  none), Play on it (from where it stopped), its title on the picture for an episode the library
+  lacks, what happens in it behind a blur of its words' shapes till asked, and the video or
+  episode before and after it at its foot, in the page's order. A title a franchise lacks shows
+  its cover blurred across the top and beside its name; choosing a poster and the videos that
+  didn't play are cards with a header. A card takes the focus as it opens, not its cross.
 - Order of work: design language (done), repo and pipelines (done), then building.
 
 **Design: Cinema** (the owner's pick of three; tokens in `app/src/styles/tokens.css`)
@@ -390,7 +403,9 @@ Everything decided so far. Don't ask again; change only with the owner.
   [Kura English Subtitles](https://claude.ai/artifact/RmbcFdZiDMXYvz69cQ9CYA) (seven boards) and
   [Kura on Any PC](https://claude.ai/artifact/BRYamJpre3pLDT4ZZtPhaN) (seven boards), and
   [Kura 1.0](https://claude.ai/artifact/7WBdCUmEhNuGVqpdpa3BKZ) (its screens as built, from the
-  tests, with made-up titles).
+  tests, with made-up titles), and
+  [Kura Detail Options](https://claude.ai/artifact/6rp1m1fFNX5SmEKhDhgt7F) (the side sheet as it
+  was and three ways instead, B, a card with its picture, chosen).
   Snapshots in [docs/design/](docs/design/), each canvas's as it changes (the owner, 2026-10-15:
   "Make sure to add the designs to the docs").
 
@@ -575,6 +590,10 @@ Everything decided so far. Don't ask again; change only with the owner.
     [Kura 1.0](https://claude.ai/artifact/7WBdCUmEhNuGVqpdpa3BKZ) page: file actions and a
     video's details, About, watched and picked up, Continue watching, Coming up, the health
     check, ticks, at a glance and choosing a poster: done, released as 1.0.0.
+14. Details as a card with its picture (2026-10-19), the owner's pick on the
+    [Kura Detail Options](https://claude.ai/artifact/6rp1m1fFNX5SmEKhDhgt7F) canvas (Decisions ›
+    Details as a card): a video's or an episode's, a title a franchise lacks, choosing a poster
+    and the videos that didn't play, with TMDB's pictures from episodes kept on their rows: done.
 
 Licences, all settled (the owner, 2026-10-14). ffmpeg: Kura doesn't ship it; the first run
 downloads an LGPL build (LGPL-2.1-or-later) from the source `engine/src/kura/downloads.json`

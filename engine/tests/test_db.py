@@ -273,3 +273,28 @@ def test_every_title_and_entry_is_asked_about_again_for_what_its_about_panel_sho
         assert [tuple(row) for row in titles] == [("2000-01-01T00:00:00+00:00", None), (None, None)]
         entry = conn.execute("SELECT checked_at, description FROM anilist_entries").fetchone()
         assert tuple(entry) == ("2000-01-01T00:00:00+00:00", None)
+
+
+def test_every_tv_shows_list_is_asked_for_again_for_its_episodes_pictures(tmp_path: Path):
+    with closing(db.connect(tmp_path / "kura.db")) as conn:
+        conn.executescript("".join(f"BEGIN;{sql}COMMIT;" for sql in MIGRATIONS[:27]))
+        conn.execute("PRAGMA user_version = 27")
+        checked = "2026-10-18T09:00:00+00:00"
+        conn.execute(
+            """INSERT INTO titles (id, kind, name, tmdb_type, tmdb_id, checked_at)
+               VALUES (1, 'series', 'Starfall Academy', 'tv', 9, ?),
+                      (2, 'movie', 'Comet Night', 'movie', 11, ?),
+                      (3, 'ova', 'Lantern Tales', NULL, NULL, ?),
+                      (4, 'series', 'Moonlit Harbour', 'tv', 12, NULL)""",
+            (checked, checked, checked),
+        )
+        conn.execute(
+            "INSERT INTO episodes (title_id, season, number, name) VALUES (1, 1, 1, 'Arrival')"
+        )
+        conn.commit()
+
+        db.migrate(conn)
+
+        titles = conn.execute("SELECT checked_at FROM titles ORDER BY id").fetchall()
+        assert [row[0] for row in titles] == ["2000-01-01T00:00:00+00:00", checked, checked, None]
+        assert conn.execute("SELECT still FROM episodes").fetchone()[0] is None

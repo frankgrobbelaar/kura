@@ -29,6 +29,10 @@ private; these snapshots are the shared copy):
   title's About, watched marks and ticks, a video in full, an episode you don't have, choosing a
   poster, picking up where you stopped, and the health check ([one.html](one.html), its pictures
   in [one/](one/)). Kura's own screens from its tests, with made-up titles.
+- [Kura Detail Options](https://claude.ai/artifact/6rp1m1fFNX5SmEKhDhgt7F): a video's or an
+  episode's details, the side sheet as 1.0 had it and three ways instead: A, a peek beside what
+  was clicked; B, a card with its picture, chosen ([details.html](details.html) and
+  [details-video.html](details-video.html)); and C, the page opening up in place.
 - [Kura README Options](https://claude.ai/artifact/SJXeVqCrbCZPHk5Y17p7jk): three drafts of the
   repo's README, B (a tour) chosen ([readme.html](readme.html)). Its pictures are the README's
   own, in [../readme/](../readme/).
@@ -64,6 +68,15 @@ private; these snapshots are the shared copy):
 | Home: what has no English | [english-home.html](english-home.html) |
 | English subtitles' small things | [english-states.html](english-states.html) |
 | Kura 1.0: what it adds, as built | [one.html](one.html) |
+| Details, chosen: a card with its picture, an episode you don't have | [details.html](details.html) |
+| The card for a video, Play on its picture | [details-video.html](details-video.html) |
+| Details before: the side sheet, an episode you don't have | [details-before.html](details-before.html) |
+| The side sheet for a video | [details-before-video.html](details-before-video.html) |
+| Option A: a peek beside the episode | [details-peek.html](details-peek.html) |
+| Option A: a peek beside the video | [details-peek-video.html](details-peek-video.html) |
+| Option C: the episode opens up in its list | [details-in-place.html](details-in-place.html) |
+| Option C: the video opens up in its list | [details-in-place-video.html](details-in-place-video.html) |
+| Option C: the episode map opens a strip | [details-in-place-map.html](details-in-place-map.html) |
 | Setup: what this PC can do | [anypc.html](anypc.html) |
 | The same on a laptop with Intel graphics | [anypc-laptop.html](anypc-laptop.html) |
 | Settings › About: this PC | [anypc-about.html](anypc-about.html) |
@@ -91,7 +104,7 @@ The pages are generated; don't edit them. When a canvas changes, ask Claude to r
 README options are a plain page: give the file a read of it saves):
 
 ```powershell
-node scripts/design-snapshot.mjs --workflows <folder> --options <folder> --light <folder> --player <folder> --english <folder> --anypc <folder> --readme <page>
+node scripts/design-snapshot.mjs --workflows <folder> --options <folder> --light <folder> --player <folder> --english <folder> --anypc <folder> --details <folder> --readme <page>
 ```
 
 The script expands each board's repeated parts with the board's own sample data and rewrites the

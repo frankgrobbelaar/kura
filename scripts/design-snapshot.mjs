@@ -3,9 +3,9 @@
 //
 //   node scripts/design-snapshot.mjs --workflows <folder> --options <folder> --light <folder>
 //                                    --player <folder> --english <folder> --anypc <folder>
-//                                    --readme <page>
+//                                    --details <folder> --readme <page>
 //
-// Any of the six canvases, each as Claude's Artifact tool saves it (a folder holding
+// Any of the seven canvases, each as Claude's Artifact tool saves it (a folder holding
 // project/canvas.json), and the README options, a plain page (its HTML file, as a read of it
 // saves it); only the pages of the ones given are written again. See docs/design/README.md.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -21,6 +21,7 @@ const CANVASES = {
   readme: "https://claude.ai/artifact/SJXeVqCrbCZPHk5Y17p7jk",
   english: "https://claude.ai/artifact/RmbcFdZiDMXYvz69cQ9CYA",
   anypc: "https://claude.ai/artifact/BRYamJpre3pLDT4ZZtPhaN",
+  details: "https://claude.ai/artifact/6rp1m1fFNX5SmEKhDhgt7F",
 };
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "docs", "design");
 const today = new Date().toISOString().slice(0, 10);
@@ -28,7 +29,7 @@ const today = new Date().toISOString().slice(0, 10);
 const folders = foldersIn(process.argv.slice(2));
 if (!folders) {
   console.error(
-    "Usage: node scripts/design-snapshot.mjs --workflows <folder> --options <folder> --light <folder> --player <folder> --english <folder> --anypc <folder> --readme <page>",
+    "Usage: node scripts/design-snapshot.mjs --workflows <folder> --options <folder> --light <folder> --player <folder> --english <folder> --anypc <folder> --details <folder> --readme <page>",
   );
   process.exit(1);
 }
@@ -140,6 +141,31 @@ if (folders.anypc) {
         canvas: CANVASES.anypc,
         link: (target) => pages[`${target}.dc.html`] ?? "anypc.html",
       }),
+    );
+    written += 1;
+  }
+}
+
+// A video's or an episode's details: the side sheet as it was, and the three ways drawn instead
+// of it, a peek beside what was clicked, a card with its picture (chosen) and the page opening up
+// in place, each a page; the card's are details.html and details-video.html.
+if (folders.details) {
+  const details = readCanvas(folders.details);
+  const pages = {
+    "Main.dc.html": "details-before.html",
+    "Today-Video.dc.html": "details-before-video.html",
+    "A1-Peek-Episode.dc.html": "details-peek.html",
+    "A2-Peek-Video.dc.html": "details-peek-video.html",
+    "B1-Card-Episode.dc.html": "details.html",
+    "B2-Card-Video.dc.html": "details-video.html",
+    "C1-InPlace-Episode.dc.html": "details-in-place.html",
+    "C2-InPlace-Video.dc.html": "details-in-place-video.html",
+    "C3-InPlace-Map.dc.html": "details-in-place-map.html",
+  };
+  for (const [file, name] of Object.entries(pages)) {
+    writeFileSync(
+      join(out, name),
+      toPage(details, file, { canvas: CANVASES.details, link: () => "details.html" }),
     );
     written += 1;
   }

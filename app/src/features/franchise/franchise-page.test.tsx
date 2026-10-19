@@ -335,20 +335,20 @@ describe("FranchisePage", () => {
     expect(within(card).getByText("Dragon Ball Z Kai")).toHaveClass("line-clamp-2");
     card.click();
 
-    const sheet = await screen.findByRole("dialog", { name: "Dragon Ball Z Kai" });
-    expect(sheet).toHaveTextContent("TV series · 2009 · 97 episodes");
-    expect(sheet).toHaveTextContent("Not in your library");
-    expect(sheet).toHaveTextContent("StudioToei Animation");
-    expect(within(sheet).getByRole("list", { name: "Genres" })).toHaveTextContent(
+    const details = await screen.findByRole("dialog", { name: "Dragon Ball Z Kai" });
+    expect(details).toHaveTextContent("TV series · 2009 · 97 episodes");
+    expect(details).toHaveTextContent("Not in your library");
+    expect(details).toHaveTextContent("StudioToei Animation");
+    expect(within(details).getByRole("list", { name: "Genres" })).toHaveTextContent(
       "ActionAdventure",
     );
-    expect(sheet).toHaveTextContent("A remastered retelling, closer to the manga.");
-    within(sheet).getByRole("button", { name: "On AniList" }).click();
+    expect(details).toHaveTextContent("A remastered retelling, closer to the manga.");
+    within(details).getByRole("button", { name: "On AniList" }).click();
     await waitFor(() =>
       expect(shell.invoke).toHaveBeenCalledWith("open_anilist_page", { id: 6033 }),
     );
 
-    within(sheet).getByRole("button", { name: "Close" }).click();
+    within(details).getByRole("button", { name: "Close" }).click();
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 

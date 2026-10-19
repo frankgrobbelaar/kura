@@ -383,4 +383,11 @@ MIGRATIONS: Final[tuple[str, ...]] = (
     """
     ALTER TABLE titles ADD COLUMN poster_choice TEXT;
     """,
+    # 28. A picture from each episode, when TMDB has one, across the top of its details (a path on
+    #     TMDB's image server). Every TV show's list is asked for again soon, so they fill in.
+    """
+    ALTER TABLE episodes ADD COLUMN still TEXT;
+    UPDATE titles SET checked_at = '2000-01-01T00:00:00+00:00'
+        WHERE checked_at IS NOT NULL AND tmdb_type = 'tv';
+    """,
 )

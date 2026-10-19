@@ -349,7 +349,12 @@ of it: the picture, each sound and subtitle track, the subtitle files beside it,
 what converting it to the library's standard does, planned as Convert would. An episode's
 (`GET /titles/{id}/episodes/{season}/{number}`) are TMDB's, with its video when the library has
 it, so the missing ones open too. TMDB's synopsis of an episode is kept on its row as the episode
-list is refreshed.
+list is refreshed, and so is the path of its picture (`still`). Each has a picture for the top of
+its details (`kura/pictures.py`): `GET /files/{id}/picture` is TMDB's from its episode, else a
+frame from the file 15% of the way in (`kura/stills.py`, a card's width, its pixels made
+square), else its show's wide picture; `GET /titles/{id}/episodes/{season}/{number}/picture` is
+TMDB's from the episode, else its show's. Each is fetched or taken once and kept (`artwork/`,
+`cache/stills/`).
 
 What the owner has watched (`kura/watched.py`, the rules in `kura/core/watched.py`) is a row per
 video in `watched`: where it stopped, when it last played, and when it was seen to its last tenth

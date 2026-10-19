@@ -42,8 +42,8 @@ import { matches } from "@/lib/search";
 import { share } from "@/lib/share";
 import { cn } from "@/lib/utils";
 import { AboutPanel } from "./about-panel";
-import { PosterSheet } from "./poster-sheet";
-import { type Opened, VideoSheet } from "./video-sheet";
+import { PosterDialog } from "./poster-dialog";
+import { type Opened, type Step, VideoDetails } from "./video-details";
 
 /** One anime or film: how much of it is there, its seasons and episode map, what's missing, its
  * specials and OVAs apart, its videos, and the gap analysis next to it. */
@@ -138,6 +138,7 @@ export function TitlePage() {
   const specials = found.episodes.filter((episode) => episode.season === 0);
   const openEpisode = (episode: EpisodeState) =>
     setOpened({ episode: { season: episode.season, number: episode.number } });
+  const [before, after] = opened ? beside(found, opened) : [null, null];
   const playVideo = (video: TitleFile) => {
     const following = followingOf(found, video);
     play(
@@ -157,9 +158,12 @@ export function TitlePage() {
         current={found.name}
       />
       <Header title={found} onAsk={ask} />
-      <VideoSheet
+      <VideoDetails
         title={found}
         opened={opened}
+        before={before}
+        after={after}
+        onOpen={setOpened}
         onClose={() => setOpened(null)}
         onPlay={(fileId) => {
           const video = found.videos.find((each) => each.id === fileId);
@@ -281,7 +285,7 @@ function Header({ title, onAsk }: { title: TitleDetail; onAsk: (asking: Asking) 
           Change poster
         </span>
       </button>
-      <PosterSheet title={title} open={choosing} onClose={() => setChoosing(false)} />
+      <PosterDialog title={title} open={choosing} onClose={() => setChoosing(false)} />
       <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex h-6.5 items-center rounded-full bg-accent px-2.5 font-extrabold text-12 text-on-accent">
@@ -1132,6 +1136,39 @@ function byUse(codes: string[]): string[] {
 /** Whether a video can be watched in English: English sound, or English subtitles. */
 function english(video: TitleFile): boolean {
   return [...video.sound, ...video.subtitles].some(isEnglish);
+}
+
+/** The video or episode before the one open and the one after it, as the page lists them: a
+ * video among the title's videos, season after season; an episode among the numbered ones, or a
+ * special among the specials. */
+function beside(title: TitleDetail, opened: Opened): [Step | null, Step | null] {
+  if ("video" in opened) {
+    const all = shelves(title.videos).flatMap((shelf) => shelf.videos);
+    const at = all.findIndex((video) => video.id === opened.video);
+    const step = (video: TitleFile | undefined): Step | null =>
+      video
+        ? {
+            opened: { video: video.id },
+            code: video.season !== null && video.episode !== null ? videoName(video) : null,
+            name: shownName(title, video),
+          }
+        : null;
+    return at < 0 ? [null, null] : [step(all[at - 1]), step(all[at + 1])];
+  }
+  const { season, number } = opened.episode;
+  const all = title.episodes
+    .filter((episode) => (episode.season === 0) === (season === 0))
+    .toSorted((a, b) => a.season - b.season || a.number - b.number);
+  const at = all.findIndex((episode) => episode.season === season && episode.number === number);
+  const step = (episode: EpisodeState | undefined): Step | null =>
+    episode
+      ? {
+          opened: { episode: { season: episode.season, number: episode.number } },
+          code: code(episode.season, episode.number),
+          name: episode.name ?? `Episode ${episode.number}`,
+        }
+      : null;
+  return at < 0 ? [null, null] : [step(all[at - 1]), step(all[at + 1])];
 }
 
 /** What plays after a video: the rest of its season and the seasons after it; the specials,

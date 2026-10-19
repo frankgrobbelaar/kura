@@ -1,5 +1,6 @@
 """A video in full through the API: what it holds, where it is, the episode it is, and what
-converting it does; and an episode's own details, the library's or not."""
+converting it does; an episode's own details, the library's or not; and the picture for the top
+of each."""
 
 import json
 import sqlite3
@@ -8,6 +9,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from kura.web import Reply
+from tests.fake_web import FakeWeb
 from tests.shelf import library
 
 
@@ -106,3 +109,73 @@ def test_an_episode_says_what_happens_in_it_and_where_its_video_is(client: TestC
         None,
     )
     assert client.get("/titles/1/episodes/2/1").status_code == 404
+
+
+STILL = "https://image.tmdb.org/t/p/original/still-1-1-1.jpg"
+BACKDROP = "https://image.tmdb.org/t/p/w1280/backdrop-1.jpg"
+
+
+def test_a_video_has_tmdbs_picture_from_its_episode_fetched_once(
+    client: TestClient, conn: sqlite3.Connection, shelf: Path, web: FakeWeb
+):
+    with conn:
+        conn.execute("UPDATE episodes SET still = '/still-1-1-1.jpg' WHERE number = 1")
+    web.answers[f"GET {STILL}"] = Reply(200, {}, b"a picture from the episode")
+
+    first = client.get("/files/1/picture")
+    again = client.get("/files/1/picture")
+
+    assert (first.status_code, first.content, first.headers["content-type"]) == (
+        200,
+        b"a picture from the episode",
+        "image/jpeg",
+    )
+    assert again.content == first.content
+    assert web.paths().count(f"GET {STILL}") == 1
+
+
+def test_an_episode_has_tmdbs_picture_from_it_else_its_shows(
+    client: TestClient, conn: sqlite3.Connection, shelf: Path, web: FakeWeb
+):
+    with conn:
+        conn.execute("UPDATE episodes SET still = '/still-1-1-1.jpg' WHERE number = 3")
+        conn.execute("UPDATE titles SET backdrop = '/backdrop-1.jpg' WHERE id = 1")
+    web.answers[f"GET {STILL}"] = Reply(200, {}, b"a picture from episode 3")
+    web.answers[f"GET {BACKDROP}"] = Reply(200, {}, b"the show's picture")
+
+    lacking = client.get("/titles/1/episodes/1/3/picture")
+    without = client.get("/titles/1/episodes/1/2/picture")
+
+    assert lacking.content == b"a picture from episode 3"
+    assert without.content == b"the show's picture"
+    assert client.get("/titles/1/episodes/2/1/picture").status_code == 404
+
+
+def test_without_a_picture_anywhere_theres_none(
+    client: TestClient, conn: sqlite3.Connection, shelf: Path
+):
+    assert client.get("/titles/1/episodes/1/3/picture").status_code == 404
+    assert client.get("/files/1/picture").status_code == 404  # and no ffmpeg yet for a frame
+    assert client.get("/files/99/picture").status_code == 404
+
+
+def test_a_video_gone_from_the_library_has_no_picture(
+    client: TestClient, conn: sqlite3.Connection, shelf: Path, web: FakeWeb
+):
+    with conn:
+        conn.execute("UPDATE episodes SET still = '/still-1-1-1.jpg' WHERE number = 1")
+        conn.execute("UPDATE files SET gone_at = 'then' WHERE id = 1")
+    web.answers[f"GET {STILL}"] = Reply(200, {}, b"a picture from the episode")
+
+    assert client.get("/files/1/picture").status_code == 404
+
+
+def test_a_picture_is_asked_for_afresh_each_time(
+    client: TestClient, conn: sqlite3.Connection, shelf: Path, web: FakeWeb
+):
+    # What's behind the address changes, as a match changes or TMDB's picture comes in.
+    with conn:
+        conn.execute("UPDATE episodes SET still = '/still-1-1-1.jpg' WHERE number = 1")
+    web.answers[f"GET {STILL}"] = Reply(200, {}, b"a picture from the episode")
+
+    assert client.get("/files/1/picture").headers["cache-control"] == "no-cache"

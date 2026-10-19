@@ -7,7 +7,7 @@ import { LibrarySearch } from "./library-search";
 /**
  * Kura draws its own title bar (the window has no Windows frame). Drag it to
  * move the window; double-click it to maximise. In the middle, with `search`,
- * the library's search. It takes the pointer even while a side sheet holds the
+ * the library's search. It takes the pointer even while a card holds the
  * rest of the window, which a press here closes.
  */
 export function TitleBar({ title = "Kura", search = false }: { title?: string; search?: boolean }) {

@@ -114,6 +114,7 @@ class Episode:
     aired: date | None
     minutes: int | None
     overview: str | None = None  # what happens in it
+    still: str | None = None  # a picture from it: a path on TMDB's image server
 
 
 @dataclass(frozen=True)
@@ -410,6 +411,7 @@ def _episodes(season: Json) -> list[Episode]:
                 aired=fields.day(fields.text(item, "air_date")),
                 minutes=fields.whole(item, "runtime") or None,
                 overview=fields.text(item, "overview") or None,
+                still=fields.text(item, "still_path") or None,
             )
         )
     return found

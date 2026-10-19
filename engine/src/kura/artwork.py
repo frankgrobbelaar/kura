@@ -1,11 +1,13 @@
-"""Posters: downloaded once from TMDB's image server or AniList's, and kept in the data folder's
-`artwork` folder. Only those two hosts are ever asked for a picture.
+"""Posters and pictures: downloaded once from TMDB's image server or AniList's, and kept in the
+data folder's `artwork` folder. Only those two hosts are ever asked for a picture.
 """
 
 import hashlib
 import logging
+from contextlib import suppress
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 from kura.config import DataPaths
 from kura.tmdb import IMAGES
@@ -40,6 +42,14 @@ def background_address(backdrop: str | None) -> str | None:
     return _trusted(f"{IMAGES}/w1280{backdrop}" if backdrop.startswith("/") else backdrop)
 
 
+def still_address(still: str | None) -> str | None:
+    """Where a picture from an episode is on TMDB's image server, at its own size: TMDB's other
+    sizes of one are 300 wide at most, too small across the top of its details."""
+    if not still or not still.startswith("/"):
+        return None
+    return _trusted(f"{IMAGES}/original{still}")
+
+
 def _trusted(address: str) -> str | None:
     """The address, when it's on TMDB's or AniList's image servers over HTTPS."""
     parts = urlsplit(address)
@@ -55,8 +65,14 @@ def media_type(path: Path) -> str:
 def poster(paths: DataPaths, source: str | None, transport: Send) -> Path | None:
     """The poster's file, downloaded the first time it's asked for. None when there's none, or
     it can't be fetched now (Kura asks again next time)."""
-    address = poster_address(source)
-    if address is None:
+    return picture(paths, poster_address(source), transport)
+
+
+def picture(paths: DataPaths, address: str | None, transport: Send) -> Path | None:
+    """The picture at an address on TMDB's or AniList's image server, downloaded the first time
+    it's asked for. None when there's none, or it can't be fetched now (Kura asks again next
+    time)."""
+    if address is None or _trusted(address) is None:
         return None
     suffix = PurePosixPath(urlsplit(address).path).suffix.casefold()
     if suffix not in _KINDS:
@@ -68,14 +84,19 @@ def poster(paths: DataPaths, source: str | None, transport: Send) -> Path | None
     try:
         data = Service("Artwork", transport).raw(address)
     except WebError as error:
-        log.info("A poster couldn't be fetched (%s): %s", address, error)
+        log.info("A picture couldn't be fetched (%s): %s", address, error)
         return None
+    # Each its own unfinished file, so two asking at once never write the same one.
+    partial = kept.with_name(f"{name}.{uuid4().hex[:8]}.partial")
     try:
         paths.artwork.mkdir(parents=True, exist_ok=True)
-        partial = kept.with_name(f"{name}.partial")
         partial.write_bytes(data)
         partial.replace(kept)
     except OSError as error:
-        log.warning("Kura couldn't keep a poster: %s", error)
+        with suppress(OSError):
+            partial.unlink(missing_ok=True)
+        if kept.is_file():  # another asking at the same time kept it first
+            return kept
+        log.warning("Kura couldn't keep a picture: %s", error)
         return None
     return kept

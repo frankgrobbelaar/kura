@@ -839,6 +839,18 @@ export interface EpisodeDetails {
 
 export const useFileDetails = (id: number | null) =>
   useEngineQuery<FileDetails>(`/files/${id ?? 0}`, undefined, id !== null);
+/** The picture across the top of a video's details: TMDB's from its episode, a frame from the
+ * file, or its show's wide picture; `problem` once there's none. */
+export const useFilePicture = (id: number | null) =>
+  useEnginePicture(id === null ? null : `/files/${id}/picture`);
+/** The same for an episode the library may not have: TMDB's from it, or its show's. */
+export const useEpisodePicture = (
+  titleId: number,
+  episode: { season: number; number: number } | null,
+) =>
+  useEnginePicture(
+    episode ? `/titles/${titleId}/episodes/${episode.season}/${episode.number}/picture` : null,
+  );
 export const useEpisodeDetails = (
   titleId: number,
   season: number,
@@ -1304,6 +1316,9 @@ export function usePoster(titleId: number, has: boolean) {
 /** A guess's cover from AniList, through the engine. */
 export const useCover = (address: string | null) =>
   useEngineImage(address ? `/artwork?address=${encodeURIComponent(address)}` : null);
+/** The same, with `problem` once it can't be had: for a card that shows a stand-in then. */
+export const useCoverPicture = (address: string | null) =>
+  useEnginePicture(address ? `/artwork?address=${encodeURIComponent(address)}` : null);
 /** One of a waiting file's three stills (0, 1 or 2). */
 export const useStill = (fileId: number, index: number) =>
   useEngineImage(`/review/${fileId}/stills/${index}`);

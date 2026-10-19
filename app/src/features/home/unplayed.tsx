@@ -2,52 +2,55 @@ import { Play } from "lucide-react";
 import { useState } from "react";
 import { FileMenuItems, FileNote, useFileActions } from "@/components/file-actions";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogBody, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { MenuItem, MenuSeparator, RowMenu } from "@/components/ui/menu";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { type PlayItem, usePlayer } from "@/features/player/player-context";
 import { type UnplayedVideo, useCheckOne, useCheckup, useCheckupAction } from "@/lib/engine";
 import { split } from "@/lib/format";
 
-/** The videos the overnight health check couldn't play, beside Home: each to play and see, try
- * again, say it plays after all, or mark broken. Nothing changes till the owner says. */
-export function UnplayedSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+/** The videos the overnight health check couldn't play, in a card over Home: each to play and
+ * see, try again, say it plays after all, or mark broken. Nothing changes till the owner says. */
+export function UnplayedDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const checkup = useCheckup();
   const found = checkup.data?.unplayed ?? [];
   const { play } = usePlayer();
-  // A video that played when tried again leaves the list: the sheet says so.
+  // A video that played when tried again leaves the list: the card says so.
   const [playedNow, setPlayedNow] = useState<string | null>(null);
   return (
-    <Sheet open={open} onOpenChange={(now) => !now && onClose()}>
+    <Dialog open={open} onOpenChange={(now) => !now && onClose()}>
       {open && (
-        <SheetContent
-          title="Videos that didn't play"
-          description="The overnight health check stopped in them. Play one to see for yourself: it's only broken once you say so."
-        >
-          {playedNow && (
-            <p role="status" className="text-13 text-fg-soft">
-              {playedNow} played this time, so it's off the list.
-            </p>
-          )}
-          {found.length === 0 ? (
-            <p className="text-13 text-fg-muted">Every video the check played, played.</p>
-          ) : (
-            <ul className="-mt-2 flex flex-col">
-              {found.map((video) => (
-                <Row
-                  key={video.fileId}
-                  video={video}
-                  onPlayedNow={() => setPlayedNow(labelOf(video))}
-                  onPlay={() => {
-                    onClose();
-                    play([playItem(video)]);
-                  }}
-                />
-              ))}
-            </ul>
-          )}
-        </SheetContent>
+        <DialogContent>
+          <DialogHeader
+            title="Videos that didn't play"
+            description="The overnight health check stopped in them. Play one to see for yourself: it's only broken once you say so."
+          />
+          <DialogBody>
+            {playedNow && (
+              <p role="status" className="text-13 text-fg-soft">
+                {playedNow} played this time, so it's off the list.
+              </p>
+            )}
+            {found.length === 0 ? (
+              <p className="text-13 text-fg-muted">Every video the check played, played.</p>
+            ) : (
+              <ul className="-mt-2 flex flex-col">
+                {found.map((video) => (
+                  <Row
+                    key={video.fileId}
+                    video={video}
+                    onPlayedNow={() => setPlayedNow(labelOf(video))}
+                    onPlay={() => {
+                      onClose();
+                      play([playItem(video)]);
+                    }}
+                  />
+                ))}
+              </ul>
+            )}
+          </DialogBody>
+        </DialogContent>
       )}
-    </Sheet>
+    </Dialog>
   );
 }
 

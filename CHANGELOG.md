@@ -8,6 +8,14 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+### Changed
+- A video's or an episode's details open in a card over the page rather than a panel at its
+  side, with a picture from the episode across its top (TMDB's, or a frame from the video) and
+  Play on it, from where you stopped. What happens in it waits behind a blur till you ask, and
+  the episode before and after it sit at the card's foot, to go along without closing it.
+- A title a franchise lacks opens as a card too, its cover across the top, and so do choosing a
+  poster and the videos that didn't play.
+
 ## 1.0.0 - 2026-10-18
 
 Kura 1.0, the first version meant for everyday use. There's nothing to do on your part: it

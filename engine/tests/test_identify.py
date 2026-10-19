@@ -66,6 +66,8 @@ def test_with_a_tmdb_key_every_episode_lands_in_tmdbs_seasons(
     assert (title["year"], title["released"]) == (1989, "1989-04-26")
     assert (title["poster"], title["backdrop"]) == ("/poster-12971.jpg", "/backdrop-12971.jpg")
     assert conn.execute("SELECT COUNT(*) FROM episodes").fetchone()[0] == 291
+    still = "SELECT still FROM episodes WHERE season = 5 AND number = 11"
+    assert conn.execute(still).fetchone()[0] == "/still-12971-5-11.jpg"
     assert done.sure == 3
 
 
