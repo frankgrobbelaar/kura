@@ -840,7 +840,7 @@ export interface EpisodeDetails {
 export const useFileDetails = (id: number | null) =>
   useEngineQuery<FileDetails>(`/files/${id ?? 0}`, undefined, id !== null);
 /** The picture across the top of a video's details: TMDB's from its episode, a frame from the
- * file, or its show's wide picture; `problem` once there's none. */
+ * file, or its show's wide picture (`source` says which); `problem` once there's none. */
 export const useFilePicture = (id: number | null) =>
   useEnginePicture(id === null ? null : `/files/${id}/picture`);
 /** The same for an episode the library may not have: TMDB's from it, or its show's. */
@@ -1251,15 +1251,22 @@ export function useEngineImage(path: string | null): string | null {
  * A picture the engine makes on asking (a frame to compare), with why it couldn't when it
  * couldn't: `address` while it's there, `problem` in the engine's words.
  */
+/** Where a video's or an episode's picture is from: the episode itself, or its show. */
+export type PictureSource = "episode" | "show";
+
 export function useEnginePicture(path: string | null): {
   address: string | null;
   problem: string | null;
+  /** Where a video's or an episode's picture is from (`Kura-Picture`): "episode" for TMDB's
+   * picture from it or a frame, "show" for its show's; null for any other picture. */
+  source: PictureSource | null;
 } {
   const engine = useEngine();
   const [shown, setShown] = useState<{
     path: string;
     address: string | null;
     problem: string | null;
+    source: PictureSource | null;
   } | null>(null);
   useEffect(() => {
     if (path === null || engine.state !== "ready") return;
@@ -1271,24 +1278,28 @@ export function useEnginePicture(path: string | null): {
         if (cancelled) return;
         if (!response.ok) {
           const problem = (await problemIn(response)) ?? "Kura couldn't make the picture.";
-          if (!cancelled) setShown({ path, address: null, problem });
+          if (!cancelled) setShown({ path, address: null, problem, source: null });
           return;
         }
+        const told = response.headers.get("Kura-Picture");
+        const source = told === "episode" || told === "show" ? told : null;
         const blob = await response.blob();
         if (cancelled) return;
         address = URL.createObjectURL(blob);
-        setShown({ path, address, problem: null });
+        setShown({ path, address, problem: null, source });
       })
       .catch(() => {
-        if (!cancelled) setShown({ path, address: null, problem: "Kura's engine didn't answer." });
+        if (!cancelled) {
+          setShown({ path, address: null, problem: "Kura's engine didn't answer.", source: null });
+        }
       });
     return () => {
       cancelled = true;
       if (address) URL.revokeObjectURL(address);
     };
   }, [engine, path]);
-  if (shown === null || shown.path !== path) return { address: null, problem: null };
-  return { address: shown.address, problem: shown.problem };
+  if (shown === null || shown.path !== path) return { address: null, problem: null, source: null };
+  return { address: shown.address, problem: shown.problem, source: shown.source };
 }
 
 /** A title's poster, when it has one. */

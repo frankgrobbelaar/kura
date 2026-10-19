@@ -354,7 +354,9 @@ its details (`kura/pictures.py`): `GET /files/{id}/picture` is TMDB's from its e
 frame from the file 15% of the way in (`kura/stills.py`, a card's width, its pixels made
 square), else its show's wide picture; `GET /titles/{id}/episodes/{season}/{number}/picture` is
 TMDB's from the episode, else its show's. Each is fetched or taken once and kept (`artwork/`,
-`cache/stills/`).
+`cache/stills/`), and answered with `Kura-Picture: episode` or `show` (CORS lets the window read
+it): the window blurs a picture from an episode not yet watched till the owner asks, as it can
+give the story away.
 
 What the owner has watched (`kura/watched.py`, the rules in `kura/core/watched.py`) is a row per
 video in `watched`: where it stopped, when it last played, and when it was seen to its last tenth

@@ -20,6 +20,9 @@ from kura.subtitles import is_made
 
 router = APIRouter()
 
+# Whether a picture is from the episode or its show's (the app reads it, so CORS lets it through).
+PICTURE_HEADER = "Kura-Picture"
+
 
 class PictureFacts(ApiModel):
     codec: str
@@ -221,11 +224,12 @@ def file_picture(
     file_id: int, conn: Database, paths: Paths, web: Web, toolbox: Toolbox
 ) -> FileResponse:
     """A picture for the top of a video's details: TMDB's from its episode, a frame from the
-    file, or its show's wide picture. Fetched or taken once, then kept."""
-    kept = pictures.of_file(conn, paths, web, toolbox.path("ffmpeg"), file_id)
-    if kept is None:
+    file, or its show's wide picture. Fetched or taken once, then kept. `Kura-Picture` says
+    which: `episode` or `show`."""
+    found = pictures.of_file(conn, paths, web, toolbox.path("ffmpeg"), file_id)
+    if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "There's no picture of this video yet.")
-    return _fresh(kept)
+    return _fresh(found)
 
 
 @router.get(
@@ -237,18 +241,25 @@ def episode_picture(
     title_id: int, season: int, number: int, conn: Database, paths: Paths, web: Web
 ) -> FileResponse:
     """A picture for the top of an episode's details, the library's or not: TMDB's from the
-    episode, or its show's wide picture. Fetched once, then kept."""
-    kept = pictures.of_episode(conn, paths, web, title_id, season, number)
-    if kept is None:
+    episode, or its show's wide picture. Fetched once, then kept. `Kura-Picture` says which:
+    `episode` or `show`."""
+    found = pictures.of_episode(conn, paths, web, title_id, season, number)
+    if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "There's no picture of this episode yet.")
-    return _fresh(kept)
+    return _fresh(found)
 
 
-def _fresh(kept: Path) -> FileResponse:
-    """A picture the window asks for again each time: the one behind an address changes, as a
-    match changes or TMDB's picture comes in place of a frame."""
+def _fresh(found: pictures.Picture) -> FileResponse:
+    """A picture the window asks for again each time (the one behind an address changes, as a
+    match changes or TMDB's picture comes in place of a frame), saying whether it's from the
+    episode, which the window blurs till asked for an episode not yet watched."""
     return FileResponse(
-        kept, media_type=artwork.media_type(kept), headers={"Cache-Control": "no-cache"}
+        found.path,
+        media_type=artwork.media_type(found.path),
+        headers={
+            "Cache-Control": "no-cache",
+            PICTURE_HEADER: "episode" if found.from_episode else "show",
+        },
     )
 
 

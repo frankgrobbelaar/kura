@@ -8,6 +8,12 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+### Changed
+- A picture from an episode you haven't watched stays blurred till you ask ("Show the
+  picture", and you can hide it again), as what happens in it does, since it can give the story
+  away. Your show's own picture, when there's none from the episode, isn't blurred, and a film's
+  card shows the film's own picture rather than a frame from it.
+
 ## 1.1.0 - 2026-10-19
 
 ### Changed

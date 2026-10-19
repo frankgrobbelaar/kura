@@ -1125,7 +1125,7 @@
     "/files/{file_id}/picture": {
       "get": {
         "summary": "File Picture",
-        "description": "A picture for the top of a video's details: TMDB's from its episode, a frame from the\nfile, or its show's wide picture. Fetched or taken once, then kept.",
+        "description": "A picture for the top of a video's details: TMDB's from its episode, a frame from the\nfile, or its show's wide picture. Fetched or taken once, then kept. `Kura-Picture` says\nwhich: `episode` or `show`.",
         "operationId": "file_picture_files__file_id__picture_get",
         "security": [
           {
@@ -1167,7 +1167,7 @@
     "/titles/{title_id}/episodes/{season}/{number}/picture": {
       "get": {
         "summary": "Episode Picture",
-        "description": "A picture for the top of an episode's details, the library's or not: TMDB's from the\nepisode, or its show's wide picture. Fetched once, then kept.",
+        "description": "A picture for the top of an episode's details, the library's or not: TMDB's from the\nepisode, or its show's wide picture. Fetched once, then kept. `Kura-Picture` says which:\n`episode` or `show`.",
         "operationId": "episode_picture_titles__title_id__episodes__season___number__picture_get",
         "security": [
           {

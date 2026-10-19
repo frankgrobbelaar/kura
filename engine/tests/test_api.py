@@ -77,6 +77,12 @@ def test_the_app_window_may_call_the_api(client: TestClient):
     assert response.headers["access-control-allow-origin"] == "http://tauri.localhost"
 
 
+def test_the_app_window_may_read_whether_a_picture_is_from_the_episode(client: TestClient):
+    response = client.get("/health", headers={"Origin": "http://tauri.localhost"})
+
+    assert response.headers["access-control-expose-headers"] == "Kura-Picture"
+
+
 def test_other_web_pages_may_not(client: TestClient):
     response = client.options(
         "/health",

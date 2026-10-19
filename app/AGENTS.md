@@ -42,7 +42,9 @@ and [../CLAUDE.md](../CLAUDE.md).
   open in full in a card (`features/title/video-details.tsx`) with a picture from the episode
   across its top (`useFilePicture`, `useEpisodePicture`) and Play on it, what happens in an
   episode hidden till asked behind a blur of its words' shapes (as it gives the story away), and
-  the video or episode before and after it at its foot, in the order the page lists them.
+  the video or episode before and after it at its foot, in the order the page lists them. The
+  picture of an episode not yet watched is blurred till asked too (`DialogPicture`'s `spoiler`),
+  when the engine says it's from the episode (`source` "episode", from `Kura-Picture`).
 - Lists of titles group them by type, series, movies, OVAs then specials (`KIND_ORDER` in
   `lib/kinds.ts`), through `components/title-groups.tsx`, except in the orders that look across
   types ("Recently added", "Most missing").

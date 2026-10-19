@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { Dialog as Primitive } from "radix-ui";
 import {
   type ComponentProps,
@@ -6,6 +6,7 @@ import {
   type RefObject,
   useLayoutEffect,
   useRef,
+  useState,
 } from "react";
 import { cn } from "@/lib/utils";
 
@@ -110,7 +111,8 @@ export function DialogHeader({ title, description }: { title: ReactNode; descrip
  * episode, say, or a cover blurred into a backdrop. While it loads the band waits in the featured
  * blue; with none to show, the boards' stand-in, the blue with its orange orb. The cross sits on
  * it, a tag in its top corner, and on its lower edge what the card leads with (its heading, or
- * Play), with how far a video was watched along its foot.
+ * Play), with how far a video was watched along its foot. One that could give a story away stays
+ * blurred till asked ("Show the picture").
  */
 export function DialogPicture(props: {
   /** The picture's address, or null while there's none yet. */
@@ -119,6 +121,8 @@ export function DialogPicture(props: {
   none?: boolean;
   /** Blurred and dimmed into a backdrop, for a tall cover that can't fill the band. */
   blur?: boolean;
+  /** From an episode not watched yet: blurred till asked. */
+  spoiler?: boolean;
   /** A tag in its top corner: the episode's code, or what a title is. */
   tag?: ReactNode;
   /** How much of the video was watched, 0 to 1, or null for none. */
@@ -126,6 +130,19 @@ export function DialogPicture(props: {
   children?: ReactNode;
 }) {
   const { src, progress } = props;
+  const [asked, setAsked] = useState(false);
+  const hidden = props.spoiler === true && src !== null && !asked;
+  // "Show the picture" turns into "Hide the picture" and back: the keyboard's focus goes with it.
+  const turned = useRef(false);
+  const turn = (button: HTMLButtonElement) => {
+    turned.current = button === document.activeElement;
+    setAsked(!asked);
+  };
+  const focusTurned = (button: HTMLButtonElement | null) => {
+    if (!button || !turned.current) return;
+    turned.current = false;
+    button.focus();
+  };
   return (
     <div className="scheme-dark relative h-[min(13rem,28vh)] shrink-0 overflow-hidden bg-featured text-fg">
       {src ? (
@@ -134,8 +151,10 @@ export function DialogPicture(props: {
           src={src}
           alt=""
           className={cn(
-            "absolute inset-0 size-full animate-fade-in object-cover",
-            props.blur && "scale-110 opacity-60 blur-2xl",
+            "absolute inset-0 size-full animate-fade-in object-cover transition-[filter,scale] duration-200 ease-cinema",
+            // Grown a little, so the blur's soft rim falls outside the band.
+            props.blur && "scale-125 opacity-60 blur-2xl",
+            hidden && "scale-125 blur-2xl",
           )}
         />
       ) : (
@@ -155,6 +174,30 @@ export function DialogPicture(props: {
           {props.tag}
         </span>
       )}
+      {props.spoiler &&
+        src !== null &&
+        (hidden ? (
+          <button
+            ref={focusTurned}
+            type="button"
+            onClick={(event) => turn(event.currentTarget)}
+            className="press absolute top-3.5 left-1/2 inline-flex h-9 -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full bg-tag px-3.5 font-extrabold text-12"
+          >
+            <Eye size={15} aria-hidden="true" />
+            Show the picture
+          </button>
+        ) : (
+          <button
+            ref={focusTurned}
+            type="button"
+            aria-label="Hide the picture"
+            title="Hide the picture"
+            onClick={(event) => turn(event.currentTarget)}
+            className="press absolute top-3.5 left-1/2 inline-flex size-9 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full bg-tag"
+          >
+            <EyeOff size={15} aria-hidden="true" />
+          </button>
+        ))}
       <Primitive.Close
         aria-label="Close"
         className="press absolute top-3.5 right-4 inline-flex size-9 cursor-pointer items-center justify-center rounded-full bg-tag"

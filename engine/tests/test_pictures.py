@@ -63,9 +63,35 @@ def test_without_tmdbs_picture_a_video_shows_a_frame_from_itself(
     found = pictures.of_file(conn, paths, web, FFMPEG, 1)
 
     assert found is not None
-    assert found.read_bytes() == b"a frame"
+    assert (found.path.read_bytes(), found.from_episode) == (b"a frame", True)
     assert frames.asked == [(video, 1440.0)]
     assert web.asked == []  # the show's picture wasn't needed
+
+
+def test_a_film_shows_its_own_picture_rather_than_a_frame(
+    paths: DataPaths,
+    conn: sqlite3.Connection,
+    video: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    frames = Frames(paths)
+    monkeypatch.setattr(stills, "picture", frames)
+    with conn:
+        conn.execute("UPDATE titles SET kind = 'movie'")
+        conn.execute("UPDATE files SET season = NULL, episode = NULL")
+    web = FakeWeb({BACKDROP: Reply(200, {}, b"the film's picture")})
+
+    found = pictures.of_file(conn, paths, web, FFMPEG, 1)
+
+    assert found is not None
+    assert (found.path.read_bytes(), found.from_episode) == (b"the film's picture", False)
+    assert frames.asked == []  # nothing to blur, nothing given away
+    # Without a picture of its own, a frame stands in, from the film: blurred till asked.
+    with conn:
+        conn.execute("UPDATE titles SET backdrop = NULL")
+    framed = pictures.of_file(conn, paths, FakeWeb(), FFMPEG, 1)
+    assert framed is not None
+    assert framed.from_episode
 
 
 def test_a_frame_that_cant_be_taken_gives_the_shows_picture(
@@ -80,7 +106,7 @@ def test_a_frame_that_cant_be_taken_gives_the_shows_picture(
     found = pictures.of_file(conn, paths, web, FFMPEG, 1)
 
     assert found is not None
-    assert found.read_bytes() == b"the show's picture"
+    assert (found.path.read_bytes(), found.from_episode) == (b"the show's picture", False)
 
 
 def test_a_video_that_wont_play_isnt_asked_for_a_frame(
@@ -111,7 +137,7 @@ def test_offline_an_episode_has_its_shows_picture_kept_from_before(
     found = pictures.of_episode(conn, paths, FakeWeb(offline=True), 1, 1, 1)
 
     assert found is not None
-    assert found.read_bytes() == b"the show's picture"
+    assert (found.path.read_bytes(), found.from_episode) == (b"the show's picture", False)
     assert pictures.of_episode(conn, paths, FakeWeb(), 1, 2, 1) is None  # no such episode
 
 
@@ -128,4 +154,4 @@ def test_offline_tmdbs_picture_waits_and_the_frame_stands_in(
     found = pictures.of_file(conn, paths, FakeWeb(offline=True), FFMPEG, 1)
 
     assert found is not None
-    assert found.read_bytes() == b"a frame"
+    assert (found.path.read_bytes(), found.from_episode) == (b"a frame", True)

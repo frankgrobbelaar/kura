@@ -211,6 +211,22 @@ function renderTitle(
   return fetch;
 }
 
+/** Pictures the window is given are object addresses: jsdom has none, so each is the same one. */
+function showsPictures() {
+  Object.defineProperty(URL, "createObjectURL", {
+    value: () => "blob:the-picture",
+    configurable: true,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", { value: () => {}, configurable: true });
+}
+
+/** A picture as the engine sends it, saying whether it's from the episode or its show's. */
+function picture(source: "episode" | "show") {
+  return new Response(new Blob(["jpeg"], { type: "image/jpeg" }), {
+    headers: { "Kura-Picture": source },
+  });
+}
+
 /** Opens a row's "More" menu as a keyboard does, and picks one of its items. */
 async function fromMenu(menu: string, item: string) {
   fireEvent.keyDown(await screen.findByRole("button", { name: menu }), { key: "Enter" });
@@ -1320,13 +1336,11 @@ describe("TitlePage", () => {
   });
 
   it("shows a picture from the episode across the top of its card, Play on it", async () => {
-    const shown = vi.fn(() => "blob:the-picture");
-    Object.defineProperty(URL, "createObjectURL", { value: shown, configurable: true });
-    Object.defineProperty(URL, "revokeObjectURL", { value: () => {}, configurable: true });
+    showsPictures();
     const stopped = { ...(DBZ.videos[0] as TitleDetail["videos"][number]), resume: 610 };
     renderTitle({ ...DBZ, videos: [stopped] }, undefined, null, {
       "/files/1": DETAILS,
-      "/files/1/picture": () => new Response(new Blob(["jpeg"], { type: "image/jpeg" })),
+      "/files/1/picture": () => picture("show"),
     });
 
     await fromMenu("More for S01E01", "Details");
@@ -1335,8 +1349,65 @@ describe("TitlePage", () => {
     await waitFor(() =>
       expect(card.querySelector("img")?.getAttribute("src")).toBe("blob:the-picture"),
     );
+    // The show's picture gives nothing away: it isn't blurred.
+    expect(card.querySelector("img")).not.toHaveClass("blur-2xl");
+    expect(
+      within(card).queryByRole("button", { name: "Show the picture" }),
+    ).not.toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Play from 10:10" })).toBeVisible();
     expect(card).toHaveTextContent("Dragon Ball Z · aired 26 Apr 1989 · 14 min left");
+  });
+
+  it("blurs a picture from an episode not yet watched till asked", async () => {
+    showsPictures();
+    const seen = { ...(DBZ.videos[0] as TitleDetail["videos"][number]), id: 2, watched: true };
+    renderTitle({ ...DBZ, videos: [...DBZ.videos, { ...seen, episode: 2 }] }, undefined, null, {
+      "/files/1": DETAILS,
+      "/files/1/picture": () => picture("episode"),
+      "/files/2": { ...DETAILS, id: 2, episode: 2, episodeName: "The Search" },
+      "/files/2/picture": () => picture("episode"),
+      "/titles/1/episodes/4/11": {
+        season: 4,
+        number: 11,
+        name: "The Ginyu Force",
+        aired: "1991-01-01",
+        overview: null,
+        minutes: 24,
+        fileId: null,
+      },
+      "/titles/1/episodes/4/11/picture": () => picture("episode"),
+    });
+
+    // Not watched: blurred, Play still on it, till "Show the picture".
+    await fromMenu("More for S01E01", "Details");
+    let card = await screen.findByRole("dialog", { name: "S01E01 · The Arrival" });
+    const show = await within(card).findByRole("button", { name: "Show the picture" });
+    expect(card.querySelector("img")).toHaveClass("blur-2xl");
+    expect(within(card).getByRole("button", { name: "Play" })).toBeVisible();
+    show.focus();
+    show.click();
+    await waitFor(() => expect(card.querySelector("img")).not.toHaveClass("blur-2xl"));
+    // The keyboard stays on it, turned to hide it again.
+    expect(document.activeElement).toHaveAccessibleName("Hide the picture");
+    within(card).getByRole("button", { name: "Hide the picture" }).click();
+    await waitFor(() => expect(card.querySelector("img")).toHaveClass("blur-2xl"));
+    within(card).getByRole("button", { name: "Show the picture" }).click();
+    await waitFor(() => expect(card.querySelector("img")).not.toHaveClass("blur-2xl"));
+
+    // Watched: there's no story left to give away.
+    within(card).getByRole("button", { name: "Next: S01E02 · Episode 2" }).click();
+    card = await screen.findByRole("dialog", { name: "S01E02 · The Search" });
+    await waitFor(() => expect(card.querySelector("img")).toBeInTheDocument());
+    expect(card.querySelector("img")).not.toHaveClass("blur-2xl");
+    within(card).getByRole("button", { name: "Close" }).click();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    // An episode the library hasn't got has never been watched.
+    const map = screen.getByRole("region", { name: "Episode map" });
+    within(map).getByTitle("S04E11 · episode 50 · The Ginyu Force · missing").click();
+    card = await screen.findByRole("dialog", { name: "S04E11 · The Ginyu Force" });
+    expect(await within(card).findByRole("button", { name: "Show the picture" })).toBeVisible();
+    expect(card.querySelector("img")).toHaveClass("blur-2xl");
   });
 
   it("says why a video won't play in its details, and offers no Play", async () => {

@@ -368,9 +368,13 @@ Everything decided so far. Don't ask again; change only with the owner.
   frame from the video, else its show's wide picture; the featured blue and its orb when there's
   none), Play on it (from where it stopped), its title on the picture for an episode the library
   lacks, what happens in it behind a blur of its words' shapes till asked, and the video or
-  episode before and after it at its foot, in the page's order. A title a franchise lacks shows
-  its cover blurred across the top and beside its name; choosing a poster and the videos that
-  didn't play are cards with a header. A card takes the focus as it opens, not its cross.
+  episode before and after it at its foot, in the page's order. A picture from the episode
+  (TMDB's or a frame) stays blurred till asked ("Show the picture") while the episode isn't
+  watched (the owner, 2026-10-19: "yes, blur unwatched episodes' pictures till asked"); the
+  show's own picture isn't blurred, and a film shows its own picture before a frame. A title a
+  franchise lacks shows its cover blurred across the top and beside its name; choosing a poster
+  and the videos that didn't play are cards with a header. A card takes the focus as it opens,
+  not its cross.
 - Order of work: design language (done), repo and pipelines (done), then building.
 
 **Design: Cinema** (the owner's pick of three; tokens in `app/src/styles/tokens.css`)

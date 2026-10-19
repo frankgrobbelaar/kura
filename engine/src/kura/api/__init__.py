@@ -212,6 +212,7 @@ def create_app(
         allow_origins=APP_ORIGINS,
         allow_methods=["*"],
         allow_headers=["Authorization", "Content-Type"],
+        expose_headers=[files.PICTURE_HEADER],
     )
     guarded = [Depends(require_token), Depends(require_records)]
     for part in (

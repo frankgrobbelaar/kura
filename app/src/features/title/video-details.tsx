@@ -123,6 +123,8 @@ function VideoCard(props: { title: TitleDetail; fileId: number; onPlay: () => vo
       <DialogPicture
         src={picture.address}
         none={picture.problem !== null}
+        // A picture from the episode can give its story away: blurred till asked, till it's watched.
+        spoiler={picture.source === "episode" && !video?.watched}
         tag={tagOf(title, season, shown)}
         progress={resume !== null && duration ? Math.min(1, resume / duration) : null}
       >
@@ -235,13 +237,15 @@ function EpisodeCard(props: {
       <DialogPicture
         src={picture.address}
         none={picture.problem !== null}
+        // Not in the library, so not watched: a picture from it stays blurred till asked.
+        spoiler={picture.source === "episode"}
         tag={tagOf(title, episode.season, numbered)}
       >
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate font-bold text-12 text-fg-soft">{title.name}</span>
           <DialogTitle
             aria-label={`${numbered} · ${name}`}
-            className="line-clamp-3 text-26 tracking-[-0.02em] [overflow-wrap:anywhere]"
+            className="line-clamp-2 text-26 tracking-[-0.02em] [overflow-wrap:anywhere]"
           >
             {name}
           </DialogTitle>

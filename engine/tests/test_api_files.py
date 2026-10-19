@@ -130,6 +130,8 @@ def test_a_video_has_tmdbs_picture_from_its_episode_fetched_once(
         b"a picture from the episode",
         "image/jpeg",
     )
+    # From the episode: the window blurs it till asked, for an episode not yet watched.
+    assert first.headers["kura-picture"] == "episode"
     assert again.content == first.content
     assert web.paths().count(f"GET {STILL}") == 1
 
@@ -146,8 +148,11 @@ def test_an_episode_has_tmdbs_picture_from_it_else_its_shows(
     lacking = client.get("/titles/1/episodes/1/3/picture")
     without = client.get("/titles/1/episodes/1/2/picture")
 
-    assert lacking.content == b"a picture from episode 3"
-    assert without.content == b"the show's picture"
+    assert (lacking.content, lacking.headers["kura-picture"]) == (
+        b"a picture from episode 3",
+        "episode",
+    )
+    assert (without.content, without.headers["kura-picture"]) == (b"the show's picture", "show")
     assert client.get("/titles/1/episodes/2/1/picture").status_code == 404
 
 
