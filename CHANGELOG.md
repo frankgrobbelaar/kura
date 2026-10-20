@@ -8,6 +8,8 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+## 1.3.0 - 2026-10-20
+
 ### Fixed
 - A release that numbers a show straight through its seasons is found and filed without asking:
   "My Hero Academia - 159" in a "Season 07" folder goes to season 7, though AniList keeps each
