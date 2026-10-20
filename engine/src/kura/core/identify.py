@@ -14,6 +14,7 @@ import unicodedata
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
+from datetime import date
 from difflib import SequenceMatcher
 from pathlib import PurePath
 
@@ -99,17 +100,24 @@ def group_files(files: Iterable[FileFacts]) -> list[Group]:
 
 
 def names(group: Group) -> list[str]:
-    """The ways a group's name reads, to score what's found against: its name, and for a numbered
-    film ("Dragon Ball Z: Battle of Gods, UNCut", or a series' special looked up by its own name)
-    also its name up to a comma and its own name alone, with the series' initials written out:
-    "DB Super BROLY" among Dragon Ball Z's films is "Dragon Ball Super BROLY"."""
+    """The ways a group's name reads, to score what's found against: its name; each of two names
+    when it gives one in brackets after the other ("Kimetsu no Yaiba (Demon Slayer)"); and for a
+    numbered film ("Dragon Ball Z: Battle of Gods, UNCut", or a series' special looked up by its
+    own name) also its name up to a comma and its own name alone, with the series' initials
+    written out: "DB Super BROLY" among Dragon Ball Z's films is "Dragon Ball Super BROLY"."""
     texts = [group.query]
+    if both := _OTHER_NAME.match(group.query):
+        texts += [both["name"], both["other"]]
     own = group.query.removeprefix(f"{group.series}: ") if group.series else group.query
     if group.series and own != group.query:
         first = own.split(",")[0].strip()
         texts += [f"{group.series} {first}", own, first]
         texts += [text for part in (own, first) if (text := spelled_out(part, group.series))]
     return _unique(texts)
+
+
+# A name with another after it in brackets: "Ore dake Level Up na Ken (Solo Leveling)".
+_OTHER_NAME = re.compile(r"^(?P<name>[^()]+?)\s*\((?P<other>[^()]*[^\W\d_][^()]*)\)$")
 
 
 def searches(group: Group, *, series: bool = True) -> list[str]:
@@ -165,8 +173,10 @@ def _part_words(parsed: ParsedName) -> str | None:
 
 
 def guesses(group: Group, entries: Sequence[Anime]) -> list[Guess]:
-    """AniList's entries as guesses for a group, most confident first."""
-    found = [_guess(group, entry, rank) for rank, entry in enumerate(entries)]
+    """AniList's entries as guesses for a group, most confident first. Each is scored with the
+    others found beside it: a season's sequels among them count for files numbered straight
+    through the show."""
+    found = [_guess(group, entry, rank, entries) for rank, entry in enumerate(entries)]
     found.sort(key=lambda guess: guess.confidence, reverse=True)
     return [guess for guess in found if guess.confidence >= WORTH_SHOWING]
 
@@ -188,7 +198,7 @@ def tmdb_fit(group: Group, hit: Hit, rank: int, aliases: Sequence[str] = ()) -> 
     other names TMDB knows it by, `aliases`) against the ways the files' name reads, its year,
     whether it's a film as they are, and whether it's Japanese animation."""
     known = [title for title in (hit.title, hit.original_title, *aliases) if title]
-    name = max(similarity(text, title) for text in names(group) for title in known)
+    name = name_fit(names(group), known, main_part=not group.movie)
     score = name * 70
     if group.year and hit.year:
         if group.year == hit.year:
@@ -217,8 +227,8 @@ def through_tmdb(group: Group, hit: Hit, fit: int, entries: Sequence[Anime]) -> 
     return [guess for guess in capped if guess.confidence >= WORTH_SHOWING]
 
 
-def _guess(group: Group, entry: Anime, rank: int) -> Guess:
-    name = max(similarity(text, title) for text in names(group) for title in entry.titles)
+def _guess(group: Group, entry: Anime, rank: int, found: Sequence[Anime] = ()) -> Guess:
+    name = name_fit(names(group), entry.titles, main_part=not group.movie)
     score = name * 70
     reasons: list[str] = ["Title matches" if name >= 0.95 else f"Title {round(name * 100)}% alike"]
     # A series' specials came after it began, and are as long as they are.
@@ -240,11 +250,18 @@ def _guess(group: Group, entry: Anime, rank: int) -> Guess:
 
     longest = group.longest_episode
     if longest is not None and entry.episodes and not group.movie:
+        run, goes_on = _run(entry, found)
         if longest <= entry.episodes:
             score += 10
             reasons.append(
                 f"{_episodes(entry.episodes)} {'fits' if entry.episodes == 1 else 'fit'}"
             )
+        # Files numbered on through its later seasons fit it, but no better than they'd fit a
+        # remake whose seasons hold as many: nothing's added, nothing's taken away.
+        elif longest <= run:
+            reasons.append(f"{_episodes(run)} with its later seasons fit")
+        elif goes_on:
+            reasons.append("Its later seasons may hold the rest")  # past what AniList found
         elif not entry.airing:
             score -= 20
             reasons.append(f"Only {_episodes(entry.episodes)}, files go up to {longest}")
@@ -261,6 +278,36 @@ def _guess(group: Group, entry: Anime, rank: int) -> Guess:
     if rank == 0:
         score += 5  # AniList ranked it first
     return Guess(entry, max(0, min(100, round(score))), tuple(reasons))
+
+
+def _run(entry: Anime, found: Sequence[Anime]) -> tuple[int, bool]:
+    """How many episodes a series and the seasons after it have together, as far as the entries
+    found (`found`) know them, and whether more follow that they don't: AniList keeps every
+    season apart, a release can number the whole show straight through ("My Hero Academia -
+    159"). A season with several sequels goes on with the first to air."""
+    known = {each.id: each for each in found}
+    total, at, seen = 0, entry, {entry.id}
+    while True:
+        if at.episodes is None:
+            return total, True  # still airing, or its count not known yet
+        total += at.episodes
+        sequels = sorted(
+            (
+                related
+                for related in at.related
+                if related.relation == "SEQUEL"
+                and related.kind is TitleKind.SERIES
+                and related.id not in seen
+            ),
+            key=lambda related: related.start or date.max,
+        )
+        if not sequels:
+            return total, False
+        following = known.get(sequels[0].id)
+        if following is None:
+            return total, True
+        at = following
+        seen.add(at.id)
 
 
 def _kind_fit(group: Group, entry: Anime, reasons: list[str]) -> float:
@@ -336,6 +383,26 @@ def normalize(text: str) -> str:
 
 
 _ACCENT = re.compile("[\u0300-\u036f]")  # the marks Latin letters carry
+
+
+def name_fit(texts: Sequence[str], titles: Sequence[str], *, main_part: bool = True) -> float:
+    """How alike the files' names (`texts`) and a show's (`titles`) are, the closest two. A name
+    that is a title's main part, before its subtitle, is nearly the title: "Demon Slayer" is
+    "Demon Slayer: Kimetsu no Yaiba" at least `_MAIN_PART` alike, more the closer the rest. Not
+    for a film (`main_part` False): a series' films share its name before theirs, so a film
+    named for its series alone is any of them."""
+    best = 0.0
+    for title in titles:
+        main = normalize(title.split(":", 1)[0]) if main_part and ":" in title else ""
+        for text in texts:
+            alike = similarity(text, title)
+            if len(main) > 3 and main == normalize(text):  # not "Re" of "Re:ZERO"
+                alike = _MAIN_PART + (1 - _MAIN_PART) * alike
+            best = max(best, alike)
+    return best
+
+
+_MAIN_PART = 0.75
 
 
 def similarity(a: str, b: str) -> float:

@@ -8,6 +8,24 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+### Fixed
+- A release that numbers a show straight through its seasons is found and filed without asking:
+  "My Hero Academia - 159" in a "Season 07" folder goes to season 7, though AniList keeps each
+  season apart. So are its films ("My Hero Academia Movie 01 - Two Heroes") and its OVAs by their
+  names ("OVA - Training of the Dead!"), and a creditless ending among its extras ("[SP02] NCED -
+  01") is an extra now, not a special. A bare number in a folder of a show's OVAs is one of its
+  OVAs, and one among its films waits for you, rather than either being taken for an episode.
+- Names in Japanese are found: 第01話 and 第2期, 劇場版 or Gekijouban for a film, 総集編 for a
+  recap, full-width letters and digits, and a show's name in 【】 (and 第01集 from Chinese
+  releases).
+- More names are found as they're written: one that gives two ("Ore dake Level Up na Ken (Solo
+  Leveling)"), a show's short English name ("Demon Slayer", "Seraph of the End"), scene names
+  with dots ("Spy.x.Family.S01E01"), a film named as its folder ("Jujutsu Kaisen 0 (2021)", not
+  an episode 0), and folders named after a show and its season ("[Group] Show Season 02", "Show
+  2nd Season", "Show (Season 2)"). The videos waiting for a match are looked up again at the next
+  scan.
+- A video named with a circled number ("Show - ①") no longer stops identifying every video.
+
 ## 1.2.0 - 2026-10-19
 
 ### Changed

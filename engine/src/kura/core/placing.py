@@ -3,7 +3,8 @@
 Releases number episodes in three ways, and all of them land in TMDB's seasons:
 
 - by season: "S02E05", or "05" in a "Season 02" folder;
-- straight through: "Dragon Ball Z - 150" is the 150th episode, wherever TMDB's seasons break;
+- straight through: "Dragon Ball Z - 150" is the 150th episode, wherever TMDB's seasons break,
+  even in a season's folder ("Season 02/My Hero Academia - 14", after season 1's 13);
 - per AniList entry: "Attack on Titan Season 3 Part 2 - 03" is the third episode of a part that
   TMDB folds into its season 3, found by the part's first air date.
 
@@ -13,13 +14,15 @@ review.
 """
 
 import re
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import StrEnum
+from pathlib import PurePath
 
 from kura.core.catalog import Anime, Episode, Show, TitleKind
-from kura.core.identify import similarity
+from kura.core.identify import FileFacts, similarity
 from kura.core.names import Kind, ParsedName
 
 _SAME_DAY = timedelta(days=3)  # air dates differ by time zone and listing, never by much more
@@ -73,6 +76,45 @@ def place(parsed: ParsedName, show: Show, entry: Anime | None = None) -> Placeme
             return Placement(season, number, last, How.NUMBERED)
     # Counted straight through, from the show's first episode.
     return _from(numbered, number - 1, parsed, How.STRAIGHT)
+
+
+def numbered_through(files: Iterable[FileFacts], show: Show) -> set[int]:
+    """The files (by id) in a season's folder that count straight through the show, not from 1
+    in each season: "Season 02/My Hero Academia - 14" after season 1's 13 is season 2's first.
+    One number can't tell, so a folder's files tell together: theirs start past the seasons
+    before it and run on past its own. Numbers that would fit either way (14 to 25 in season 2's
+    folder) go as the release's other seasons beside it do, and keep their season when those
+    don't tell. A name that says its season ("S02E14") goes by it."""
+    numbered = show_episodes(show)
+    folders: dict[tuple[PurePath, int], dict[int, int]] = defaultdict(dict)
+    for facts in files:
+        parsed = facts.parsed
+        number, season = parsed.episode, parsed.folder_season
+        if parsed.kind is Kind.EPISODE and parsed.season is None and number and season:
+            folders[(facts.path.parent, season)][facts.id] = number
+    told: dict[tuple[PurePath, int], bool | None] = {}  # None: either way
+    for (folder, season), numbers in folders.items():
+        before = sum(1 for episode in numbered if episode.season < season)
+        own = sum(1 for episode in numbered if episode.season == season)
+        if not before:
+            continue  # season 1's numbers are the same either way, and tell nothing
+        first, last = min(numbers.values()), max(numbers.values())
+        if first <= before:
+            told[(folder, season)] = False  # from 1 in its season
+        else:
+            told[(folder, season)] = True if last > own else None
+    straight: set[int] = set()
+    for (folder, season), says in told.items():
+        if says is None:
+            beside = {
+                other_says
+                for (other, _), other_says in told.items()
+                if other != folder and other.parent == folder.parent
+            }
+            says = True in beside and False not in beside
+        if says:
+            straight.update(folders[(folder, season)])
+    return straight
 
 
 def show_episodes(show: Show) -> list[Episode]:

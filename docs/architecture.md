@@ -157,7 +157,10 @@ next start carries on. Then each video read is identified (`kura/identify.py`): 
 the same anime are looked up together on AniList (a release's numbered film by its own name, asked
 again in shorter forms while nothing found is sure, and a name AniList writes otherwise as it writes
 it; see [stack/anilist.md](stack/anilist.md)), and with the owner's TMDB key the same show or film
-is found on TMDB, whose episode lists say where each file sits. What AniList can't find by a name,
+is found on TMDB, whose episode lists say where each file sits (`kura/core/placing.py`): by its
+season and number, by its number counted straight through the show (in a season's folder too,
+when the folder's files count on from the seasons before it), or by its AniList part's first
+day. What AniList can't find by a name,
 TMDB's search is asked for, and AniList for TMDB's names for it ([stack/tmdb.md](stack/tmdb.md)). An
 OVA or special goes into its show's season 0 when the library has the show and TMDB lists it among
 the show's specials on the day it first aired, or by its own name ("Special 06 - The History of

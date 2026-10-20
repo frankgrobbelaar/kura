@@ -116,8 +116,67 @@ def test_a_film_file_matches_the_film_not_the_series():
     assert best.anime.id == 5
 
 
+PACK = r"F:\Anime\[Anime Time] Boku No Hero Academia (My Hero Academia) (S01-S07+Movies+OVAs) [BD]"
+
+
+def mha_pack(*numbers: int) -> list[FileFacts]:
+    """The owner's own pack: My Hero Academia numbered 1 to 159 straight through its seasons."""
+    return [
+        facts(
+            rf"{PACK}\[Anime Time] My Hero Academia Season 0{1 + (n - 1) // 25}"
+            rf"\[Anime Time] My Hero Academia - {n:02}.mkv",
+            number=n,
+        )
+        for n in numbers
+    ]
+
+
+def test_a_show_numbered_straight_through_its_seasons_is_its_first_season_and_those_after():
+    # AniList keeps each season apart, but a release numbers the show through all of them.
+    [group] = group_files(mha_pack(1, 14, 39, 64, 89, 114, 159))
+
+    found = guesses(group, entries("my-hero-academia"))
+
+    assert found[0].anime.id == 21459  # its first season, whose sequels go on past what's found
+    assert found[0].confidence >= SURE
+    assert "Its later seasons may hold the rest" in found[0].reasons
+    final = next(guess for guess in found if guess.anime.id == 182896)  # the last season
+    assert final.confidence < SURE
+    assert "Only 11 episodes, files go up to 159" in final.reasons
+
+
+def test_a_shows_seasons_found_as_far_as_its_files_go_fit_them_together():
+    [group] = group_files(mha_pack(1, 30, 60, 88))
+
+    best = guesses(group, entries("my-hero-academia"))[0]
+
+    assert best.anime.id == 21459
+    assert "88 episodes with its later seasons fit" in best.reasons
+    assert best.confidence >= SURE
+
+
 MOVIES = r"D:\Anime\DRAGON BALL Z (1989-2019) - The COMPLETE Series\2a. Movies (1989-2018)"
 SPECIALS = r"D:\Anime\DRAGON BALL Z (1989-2019) - The COMPLETE Series\3. TV Specials (1990-2013)"
+
+
+def test_a_remake_doesnt_win_on_its_later_seasons():
+    # The 2019 Fruits Basket and its sequels hold 26 episodes too, but the 2001 series is 26 alone.
+    found = entries("fruits-basket")
+    remake_first = sorted(found, key=lambda entry: entry.id != 105334)
+    [group] = group_files(
+        [facts(rf"D:\Anime\Fruits Basket\Fruits Basket - {n:02}.mkv", number=n) for n in (1, 26)]
+    )
+
+    best = guesses(group, remake_first)[0]
+
+    assert best.anime.id == 120
+
+
+def test_a_film_named_only_by_its_series_is_none_of_its_films_surely():
+    [group] = group_files([facts(r"D:\Anime\Dragon Ball Z\Dragon Ball Z - Movie.mkv", minutes=51)])
+
+    assert group.movie
+    assert guesses(group, entries("dragon-ball-z"))[0].confidence < SURE
 
 
 def test_a_numbered_film_is_matched_by_its_own_name():
@@ -203,6 +262,40 @@ def test_a_series_is_looked_up_by_its_name_alone():
     [group] = group_files([facts(r"D:\Anime\Dragon Ball Z\Dragon Ball Z - 001.mkv")])
 
     assert searches(group) == ["Dragon Ball Z"]
+
+
+def test_a_name_with_another_in_brackets_is_looked_up_by_either():
+    [group] = group_files(
+        [facts(r"D:\Anime\[Judas] Shingeki no Kyojin (Attack on Titan) - S04E01.mkv")]
+    )
+
+    assert searches(group) == [
+        "Shingeki no Kyojin (Attack on Titan)",
+        "Shingeki no Kyojin",
+        "Attack on Titan",
+    ]
+
+
+def test_a_name_that_is_a_titles_main_part_fits_it_nearly_as_well():
+    # AniList calls it "Seraph of the End: Vampire Reign"; the files go by its first words.
+    [group] = group_files([facts(r"D:\Anime\Seraph of the End\Seraph of the End - 01.mkv")])
+
+    best = guesses(group, entries("seraph-of-the-end"))[0]
+
+    assert best.anime.id == 20829
+    assert best.confidence >= SURE
+
+
+def test_a_shows_main_name_beats_a_short_ones_other_name():
+    # Onigiri, a series of four-minute episodes, is also known as "Demon Slayer".
+    [group] = group_files(
+        [facts(r"D:\Anime\Demon Slayer\Season 3\Demon Slayer - S03E01 - Someone's Dream.mkv")]
+    )
+
+    best = guesses(group, entries("demon-slayer"))[0]
+
+    assert best.anime.title == "Demon Slayer: Kimetsu no Yaiba"
+    assert best.confidence >= SURE
 
 
 def test_accents_on_latin_letters_dont_count_and_japanese_is_kept():

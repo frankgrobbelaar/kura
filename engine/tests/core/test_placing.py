@@ -1,14 +1,23 @@
 """Where a file sits in a TMDB show: numbered by season, counted straight through, or by date."""
 
 import json
+from dataclasses import replace
 from datetime import date
 from pathlib import Path, PureWindowsPath
 
 import pytest
 
 from kura.core.catalog import Anime, Show, anime_list, show
+from kura.core.identify import FileFacts
 from kura.core.names import parse_name
-from kura.core.placing import How, Placement, lists_special, named_special, place
+from kura.core.placing import (
+    How,
+    Placement,
+    lists_special,
+    named_special,
+    numbered_through,
+    place,
+)
 from tests.tmdb_data import DBZ_SEASONS, tv_details
 
 ANILIST = Path(__file__).parent.parent / "data" / "anilist"
@@ -264,3 +273,68 @@ def test_a_show_lists_a_special_by_the_day_it_first_aired():
     assert lists_special(BEBOP, date(1998, 6, 27))  # a day out, as listings are
     assert not lists_special(BEBOP, date(1998, 7, 10))
     assert not lists_special(DBZ, date(1989, 4, 26))  # no specials at all
+
+
+# My Hero Academia's first three seasons as TMDB has them, for the owner's own pack.
+HEROES = tmdb_show(
+    tv_details(65930, "My Hero Academia", (13, 25, 25), first_aired=date(2016, 4, 3))
+)
+HEROES_PACK = r"F:\Anime\[Anime Time] Boku No Hero Academia (My Hero Academia)"
+
+
+def heroes(season: int, *numbers: int, named: str = "{n:02}") -> list[FileFacts]:
+    """The pack's files in its "Season 0N" folder, each with its number as its id."""
+    folder = rf"{HEROES_PACK}\[Anime Time] My Hero Academia Season 0{season}"
+    files: list[FileFacts] = []
+    for n in numbers:
+        file = PureWindowsPath(rf"{folder}\[Anime Time] My Hero Academia - {named.format(n=n)}.mkv")
+        files.append(FileFacts(n, file, parse_name(file), 24.0))
+    return files
+
+
+def test_a_season_folder_numbered_straight_through_the_show_goes_by_its_numbers():
+    # Season 02 holds episodes 14 to 38: the show's 14th is its season 2's first.
+    files = heroes(2, *range(14, 39))
+
+    straight = numbered_through(files, HEROES)
+
+    assert straight == set(range(14, 39))
+    first, last = (place(replace(files[i].parsed, folder_season=None), HEROES) for i in (0, -1))
+    assert (first, last) == (
+        Placement(2, 1, None, How.STRAIGHT),
+        Placement(2, 25, None, How.STRAIGHT),
+    )
+
+
+def test_a_season_folder_numbered_from_one_keeps_its_season():
+    assert numbered_through(heroes(2, *range(1, 26)), HEROES) == set()
+    assert numbered_through(heroes(1, *range(1, 14)), HEROES) == set()  # the same either way
+
+
+def test_a_season_folder_missing_its_first_file_still_counts_straight_through():
+    # 15 to 38: past season 1's 13, and on past season 2's own 25.
+    assert numbered_through(heroes(2, *range(15, 39)), HEROES) == set(range(15, 39))
+
+
+@pytest.mark.parametrize("first", [14, 15])
+def test_a_season_folder_whose_numbers_could_be_either_keeps_its_season(first: int):
+    # 14 to 25 are season 2's own numbers as well: nothing says they count straight through.
+    assert numbered_through(heroes(2, *range(first, 26)), HEROES) == set()
+
+
+def test_a_releases_other_seasons_tell_how_it_numbers_one_that_could_be_either():
+    files = [*heroes(2, *range(14, 21)), *heroes(3, *range(39, 46))]
+
+    assert numbered_through(files, HEROES) == {*range(14, 21), *range(39, 46)}
+
+
+def test_each_folder_tells_its_own_numbering():
+    files = [*heroes(2, *range(14, 39)), *heroes(3, *range(1, 26))]
+
+    assert numbered_through(files, HEROES) == set(range(14, 39))
+
+
+def test_a_name_that_says_its_season_goes_by_it():
+    files = heroes(2, *range(14, 26), named="S02E{n:02}")
+
+    assert numbered_through(files, HEROES) == set()

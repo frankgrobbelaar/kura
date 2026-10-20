@@ -1,5 +1,6 @@
 """AniList and TMDB as the tests stand them in: real AniList answers saved in tests/data/anilist,
-and TMDB answers built in TMDB's shape (tests/tmdb_data.py), for Dragon Ball Z and Cowboy Bebop."""
+and TMDB answers built in TMDB's shape (tests/tmdb_data.py), for Dragon Ball Z, Cowboy Bebop and
+My Hero Academia."""
 
 import json
 from collections.abc import Callable, Mapping
@@ -30,6 +31,7 @@ ANILIST_ANSWERS = {
     "dbz": "dragon-ball-z",
     "cowboy bebop": "cowboy-bebop",
     "one piece": "one-piece",
+    "my hero academia": "my-hero-academia",
 }
 
 DBZ_DETAILS = {
@@ -53,6 +55,21 @@ BEBOP_DETAILS = tv_details(
     specials=3,
     special_dates=(date(1998, 4, 3), date(1998, 6, 26), date(2012, 12, 21)),
     titles={(1, 1): "Asteroid Blues", (1, 2): "Stray Dog Strut"},
+)
+
+
+# My Hero Academia's first seven seasons, and two of its specials by the names TMDB gives them.
+HEROES_DETAILS = tv_details(
+    65930,
+    "My Hero Academia",
+    (13, 25, 25, 25, 25, 25, 21),
+    first_aired=date(2016, 4, 3),
+    specials=2,
+    special_dates=(date(2020, 8, 16), date(2020, 8, 16)),
+    titles={
+        (0, 1): "Make It! Do-or-Die Survival Training (1)",
+        (0, 2): "Make It! Do-or-Die Survival Training (2)",
+    },
 )
 
 
@@ -109,12 +126,17 @@ def tmdb_search_tv(asked: Asked) -> object:
         return tv_search((12971, "Dragon Ball Z", date(1989, 4, 26)))
     if query == "cowboy bebop":
         return tv_search((30991, "Cowboy Bebop", date(1998, 4, 3)))
+    if query == "my hero academia":
+        return tv_search((65930, "My Hero Academia", date(2016, 4, 3)))
     return {"results": []}
 
 
 def tmdb_search_movie(asked: Asked) -> object:
-    if asked.query["query"].casefold().startswith("cowboy bebop"):
+    query = asked.query["query"].casefold()
+    if query.startswith("cowboy bebop"):
         return movie_search((11299, "Cowboy Bebop: The Movie", date(2001, 9, 1)))
+    if query.startswith("my hero academia"):
+        return movie_search((505262, "My Hero Academia: Two Heroes", date(2018, 8, 3)))
     return {"results": []}
 
 
@@ -132,6 +154,10 @@ def internet(*, tmdb: bool = True, airing: Mapping[int, int] | None = None) -> F
             f"GET {TMDB}/tv/30991": tmdb_show(BEBOP_DETAILS),
             f"GET {TMDB}/movie/11299": movie_details(
                 11299, "Cowboy Bebop: The Movie", date(2001, 9, 1), 115
+            ),
+            f"GET {TMDB}/tv/65930": tmdb_show(HEROES_DETAILS),
+            f"GET {TMDB}/movie/505262": movie_details(
+                505262, "My Hero Academia: Two Heroes", date(2018, 8, 3), 96
             ),
         }
     return FakeWeb(answers)

@@ -390,4 +390,11 @@ MIGRATIONS: Final[tuple[str, ...]] = (
     UPDATE titles SET checked_at = '2000-01-01T00:00:00+00:00'
         WHERE checked_at IS NOT NULL AND tmdb_type = 'tv';
     """,
+    # 29. Kura reads more names: a show numbered straight through its seasons, a release's films
+    #     and OVAs by name, Japanese names, a name with another in brackets. The files waiting
+    #     for a match are looked up again by the next scan; the owner's own choices stay.
+    """
+    UPDATE files SET identified_at = NULL
+        WHERE matched IN ('none', 'unsure') AND pinned = 0;
+    """,
 )

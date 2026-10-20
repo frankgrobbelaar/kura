@@ -448,3 +448,448 @@ def test_a_films_part_isnt_part_of_its_title(name: str):
         1988,
         None,
     )
+
+
+PACK = (
+    r"F:\Anime\[Anime Time] Boku No Hero Academia (My Hero Academia) (S01-S07+Movies+OVAs) [BD]"
+    r" [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub]"
+)
+
+
+class TestReleasePacks:
+    """A whole show in one release: its seasons in folders named after it, its films and OVAs
+    numbered and named after the show, its creditless openings beside them (the owner's own pack,
+    2026-10-18, which all waited for a match)."""
+
+    def test_a_season_folder_named_after_its_show_gives_the_season_and_the_show(self):
+        season = r"[Anime Time] My Hero Academia Season 02"
+        result = parsed(rf"{PACK}\{season}\[Anime Time] My Hero Academia - 14.mkv")
+
+        assert (result.title, result.folder_title, result.folder_season, result.episode) == (
+            "My Hero Academia",
+            "My Hero Academia",
+            2,
+            14,
+        )
+
+    @pytest.mark.parametrize(
+        ("folder", "season"),
+        [
+            ("Shingeki no Kyojin Season 3", 3),
+            ("Boku no Hero Academia 2nd Season", 2),
+            ("Kimetsu no Yaiba S2", 2),
+            ("Kimetsu no Yaiba - Season 02 [BD 1080p]", 2),
+        ],
+    )
+    def test_season_folders_name_their_show_in_many_ways(self, folder: str, season: int):
+        result = parsed(rf"D:\Anime\{folder}\01.mkv")
+
+        assert (result.folder_season, result.episode) == (season, 1)
+        assert result.folder_title is not None
+        assert "season" not in result.folder_title.casefold()
+
+    def test_a_release_packs_folder_is_read_for_the_shows_names(self):
+        result = parsed(rf"{PACK}\01.mkv")
+
+        assert result.folder_title == "Boku No Hero Academia (My Hero Academia)"
+
+    @pytest.mark.parametrize(
+        ("folder", "title"),
+        [
+            ("Fate stay night [Unlimited Blade Works]", "Fate stay night [Unlimited Blade Works]"),
+            ("[Oshi no Ko]", "Oshi no Ko"),
+            ("Cowboy Bebop (Complete Series) [BD 1080p] [Dual Audio]", "Cowboy Bebop"),
+            ("[Group]_Cowboy_Bebop_[1080p]", "Cowboy Bebop"),
+        ],
+    )
+    def test_a_folders_brackets_go_only_when_they_hold_a_releases_words(
+        self, folder: str, title: str
+    ):
+        assert parsed(rf"D:\Anime\{folder}\01.mkv").folder_title == title
+
+    def test_a_folders_own_marks_stay(self):
+        # Kura's own name for a title AniList writes "Re:ZERO -Starting Life in Another World-".
+        show = "Re ZERO -Starting Life in Another World- (2016)"
+        result = parsed(rf"D:\Anime\TV\{show}\Season 02\{show} - S02E01.mkv")
+
+        assert (result.folder_title, result.year) == (
+            "Re ZERO -Starting Life in Another World-",
+            2016,
+        )
+
+    @pytest.mark.parametrize(
+        "folder",
+        [
+            "Attack on Titan (Season 2)",
+            "Attack on Titan [S2]",
+            "Attack on Titan (2nd Season)",
+            r"Attack on Titan\(Season 2)",
+            r"Attack on Titan\Season 2 [1080p]",
+        ],
+    )
+    def test_a_season_in_a_folders_brackets_is_its_season(self, folder: str):
+        result = parsed(rf"D:\Anime\{folder}\01.mkv")
+
+        assert (result.folder_title, result.folder_season) == ("Attack on Titan", 2)
+
+    def test_a_folder_of_a_shows_seasons_gives_no_season(self):
+        result = parsed(r"D:\Anime\Attack on Titan S01-S04\Attack on Titan - 05.mkv")
+
+        assert (result.folder_title, result.folder_season) == ("Attack on Titan", None)
+
+    @pytest.mark.parametrize(
+        ("name", "title"),
+        [
+            ("[Anime Time] My Hero Academia Movie 01 - Two Heroes.mkv", "Two Heroes"),
+            (
+                "[Anime Time] My Hero Academia Movie 03 - World Heroes Mission.mkv",
+                "World Heroes Mission",
+            ),
+            ("[Anime Time] My Hero Academia Movie 04 - You're Next.mkv", "You're Next"),
+        ],
+    )
+    def test_a_numbered_film_without_a_dash_before_movie(self, name: str, title: str):
+        result = parsed(rf"{PACK}\[Anime Time] My Hero Academia Movies\{name}")
+
+        assert (result.kind, result.title, result.series) == (
+            Kind.MOVIE,
+            f"My Hero Academia: {title}",
+            "My Hero Academia",
+        )
+        # The release's folder names the show, above its films' own.
+        assert result.folder_title == "Boku No Hero Academia (My Hero Academia)"
+
+    @pytest.mark.parametrize(
+        ("folder", "title", "kind"),
+        [
+            (r"D:\Anime\Cowboy Bebop\Cowboy Bebop Specials", "Cowboy Bebop", Kind.SPECIAL),
+            (r"D:\Anime\Cowboy Bebop (1998)\OVA", "Cowboy Bebop", Kind.SPECIAL),
+            (r"D:\Anime\Hellsing Ultimate OVA", "Hellsing Ultimate", Kind.SPECIAL),
+            (r"D:\Anime\Show (2019) - Specials", "Show", Kind.SPECIAL),
+            (r"D:\Anime\TV Specials", None, Kind.SPECIAL),
+            (
+                r"D:\Anime\Dragon Ball Z (1989)\3. TV Specials (1990-2013)",
+                "Dragon Ball Z",
+                Kind.SPECIAL,
+            ),
+            # Which of a show's films a bare number is, nothing says: it waits for the owner.
+            (r"D:\Anime\Cowboy Bebop\Cowboy Bebop Movies", None, Kind.MOVIE),
+            (r"D:\Anime\Anime Movies", None, Kind.MOVIE),
+        ],
+    )
+    def test_a_folder_of_films_or_specials_says_what_a_bare_number_in_it_is(
+        self, folder: str, title: str | None, kind: Kind
+    ):
+        # The show is the folder above's, or the folder's own first words when there's none
+        # (but not "TV" of "TV Specials"). A release counts its films and OVAs its own way, so
+        # the folder is no season 0.
+        result = parsed(rf"{folder}\05.mkv")
+
+        assert (result.kind, result.best_title, result.folder_season) == (kind, title, None)
+
+    def test_a_folder_of_specials_leaves_a_named_file_as_it_is(self):
+        result = parsed(r"D:\Anime\Cowboy Bebop\Cowboy Bebop Specials\Cowboy Bebop - 05.mkv")
+
+        assert (result.kind, result.title, result.episode) == (Kind.EPISODE, "Cowboy Bebop", 5)
+
+    @pytest.mark.parametrize(
+        "folder",
+        [
+            "[Anime Time] Fullmetal Alchemist Brotherhood + OVA [BD][Dual Audio][1080p]",
+            "Toradora! & OVA",
+            "Clannad and Specials",
+            "Naruto Shippuden with Movies",
+        ],
+    )
+    def test_a_folder_of_a_show_and_its_ovas_holds_its_episodes(self, folder: str):
+        result = parsed(rf"D:\Anime\{folder}\05.mkv")
+
+        assert (result.kind, result.episode) == (Kind.EPISODE, 5)
+
+    @pytest.mark.parametrize(
+        ("folder", "title"),
+        [
+            ("K S2", "K"),  # a show's name can be one letter
+            ("Ys OVA", "Ys"),
+            ("The OVA", None),
+            ("2a. Movies (1989-2018)", None),
+        ],
+    )
+    def test_a_folders_first_words_name_a_show_unless_they_cant(self, folder: str, title: str):
+        assert parsed(rf"D:\Anime\{folder}\05.mkv").folder_title == title
+
+    def test_a_folder_of_specials_doesnt_change_a_name_that_says_what_it_is(self):
+        result = parsed(r"D:\Anime\Cowboy Bebop\Cowboy Bebop Specials\Cowboy Bebop - The Movie.mkv")
+
+        assert result.kind is Kind.MOVIE
+
+    @pytest.mark.parametrize(
+        ("name", "title", "series"),
+        [
+            (
+                "Cowboy Bebop: The Movie - Knockin' on Heaven's Door.mkv",
+                "Cowboy Bebop: Knockin' on Heaven's Door",
+                "Cowboy Bebop",
+            ),
+            (
+                "The Movie - Knockin' on Heaven's Door.mkv",
+                "The Movie - Knockin' on Heaven's Door",
+                None,
+            ),
+        ],
+    )
+    def test_a_films_series_is_a_name(self, name: str, title: str, series: str | None):
+        result = parsed(rf"D:\Anime\Cowboy Bebop\{name}")
+
+        assert (result.kind, result.title, result.series) == (Kind.MOVIE, title, series)
+
+    def test_a_film_named_after_its_series_without_a_number(self):
+        result = parsed(r"D:\Anime\Kimetsu no Yaiba Movie - Mugen Ressha-hen.mkv")
+
+        assert (result.kind, result.title, result.series) == (
+            Kind.MOVIE,
+            "Kimetsu no Yaiba: Mugen Ressha-hen",
+            "Kimetsu no Yaiba",
+        )
+
+    @pytest.mark.parametrize(
+        ("name", "own"),
+        [
+            (
+                "[Anime Time] My Hero Academia OVA - Training of the Dead!.mkv",
+                "Training of the Dead!",
+            ),
+            (
+                "[Anime Time] My Hero Academia OVA - Rescue! Rescue Training!.mkv",
+                "Rescue! Rescue Training!",
+            ),
+            (
+                "[Anime Time] My Hero Academia OVA - Make It! Do-or-Die Survival Training, Part 1"
+                ".mkv",
+                "Make It! Do-or-Die Survival Training, Part 1",
+            ),
+            (
+                "[Anime Time] My Hero Academia OVA - HLB (Hero League Baseball).mkv",
+                "HLB (Hero League Baseball)",
+            ),
+        ],
+    )
+    def test_a_named_ova_is_its_shows_special_by_its_own_name(self, name: str, own: str):
+        result = parsed(rf"{PACK}\OVA\{name}")
+
+        assert (result.kind, result.title, result.episode, result.episode_title) == (
+            Kind.SPECIAL,
+            "My Hero Academia",
+            None,
+            own,
+        )
+        # A release counts its OVAs its own way: its "OVA" folder is no season 0.
+        assert result.folder_season is None
+
+    @pytest.mark.parametrize(
+        ("name", "title", "number", "own"),
+        [
+            (
+                "Darker than Black OVA - Kuro no Keiyakusha Gaiden - 03.mkv",
+                "Darker than Black",
+                3,
+                "Kuro no Keiyakusha Gaiden",
+            ),
+            ("[Group] Cowboy Bebop OVA: Session XX - 02.mkv", "Cowboy Bebop", 2, "Session XX"),
+        ],
+    )
+    def test_a_named_ovas_episodes_keep_their_numbers(
+        self, name: str, title: str, number: int, own: str
+    ):
+        result = parsed(rf"D:\Anime\{name}")
+
+        assert (result.kind, result.title, result.episode, result.episode_title) == (
+            Kind.SPECIAL,
+            title,
+            number,
+            own,
+        )
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Boku no Hero Academia [SP02] NCED - 01.mkv",
+            "Boku no Hero Academia S2 [SP01] NCOP - 01.mkv",
+            "Boku no Hero Academia S4 NCED 1.mkv",
+            "Kimetsu no Yaiba - Creditless Opening.mkv",
+            "[Group] Spy x Family - NC OP 2 [1080p].mkv",
+            "Cowboy Bebop - Non-Credit Opening.mkv",
+        ],
+    )
+    def test_creditless_openings_and_endings_are_extras_however_named(self, name: str):
+        assert parsed(rf"{PACK}\Extras\{name}").kind is Kind.EXTRA
+
+    def test_an_episode_whose_title_has_credit_in_it_is_an_episode(self):
+        result = parsed(r"D:\Anime\Show\Show - 01 - A Noncreditable Story.mkv")
+
+        assert (result.kind, result.episode) == (Kind.EPISODE, 1)
+
+
+class TestJapaneseNames:
+    """Names in Japanese, as they come from Japanese releases and recordings: 第01話 is episode
+    1, 第2期 season 2, 劇場版 a film; full-width letters and digits read as plain ones. Chinese
+    subtitle groups' 第01集 and 第01话 are episodes too."""
+
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("鬼滅の刃 第01話.mkv", {"title": "鬼滅の刃", "episode": 1}),
+            ("鬼滅の刃 第１話.mkv", {"title": "鬼滅の刃", "episode": 1}),
+            (
+                "葬送のフリーレン 第01話 冒険の終わり.mkv",
+                {"title": "葬送のフリーレン", "episode": 1, "episode_title": "冒険の終わり"},
+            ),
+            ("鬼滅の刃 第2期 第05話.mkv", {"title": "鬼滅の刃", "season": 2, "episode": 5}),
+            ("進撃の巨人 第二期 第三話.mkv", {"title": "進撃の巨人", "season": 2, "episode": 3}),
+            (
+                "[Group] 僕のヒーローアカデミア #14 (1080p).mkv",
+                {"title": "僕のヒーローアカデミア", "episode": 14},
+            ),
+            (
+                f"Re{chr(0xFF1A)}ゼロから始める異世界生活 - 01.mkv",  # a full-width colon
+                {"title": "Re:ゼロから始める異世界生活", "episode": 1},
+            ),
+            ("我推的孩子 第01集.mp4", {"title": "我推的孩子", "episode": 1}),
+            ("鬼灭之刃 第01话.mkv", {"title": "鬼灭之刃", "episode": 1}),
+        ],
+    )
+    def test_japanese_episode_and_season_markers(self, name: str, expected: dict[str, Any]):
+        result = parsed(rf"D:\Anime\{name}")
+
+        assert result.kind is Kind.EPISODE
+        assert {key: getattr(result, key) for key in expected} == expected
+
+    @pytest.mark.parametrize(
+        ("name", "title", "year"),
+        [
+            ("劇場版 鬼滅の刃 無限列車編.mkv", "鬼滅の刃 無限列車編", None),
+            (
+                "Gekijouban Kimetsu no Yaiba Mugen Ressha-hen (2020) [BD 1080p].mkv",
+                "Kimetsu no Yaiba Mugen Ressha-hen",
+                2020,
+            ),
+            (
+                "Gekijouban Kimetsu no Yaiba - Mugen Ressha-hen.mkv",
+                "Kimetsu no Yaiba - Mugen Ressha-hen",
+                None,
+            ),
+            # Its official name, the series' in corner brackets.
+            ("劇場版「鬼滅の刃」無限列車編.mkv", "鬼滅の刃 無限列車編", None),
+        ],
+    )
+    def test_a_theatrical_version_is_a_film(self, name: str, title: str, year: int | None):
+        result = parsed(rf"D:\Anime\{name}")
+
+        assert (result.kind, result.title, result.year) == (Kind.MOVIE, title, year)
+
+    def test_a_series_theatrical_films_are_numbered_films(self):
+        result = parsed(r"D:\Anime\Dragon Ball Z - Gekijouban 03 - The Tree of Might.mkv")
+
+        assert (result.kind, result.title, result.series) == (
+            Kind.MOVIE,
+            "Dragon Ball Z: The Tree of Might",
+            "Dragon Ball Z",
+        )
+
+    def test_a_name_that_starts_with_a_groups_brackets_and_its_marks_too(self):
+        result = parsed(r"D:\Anime\葬送のフリーレン\【Group】 第01話 冒険の終わり.mkv")
+
+        assert (result.kind, result.best_title, result.episode) == (
+            Kind.EPISODE,
+            "葬送のフリーレン",
+            1,
+        )
+
+    @pytest.mark.parametrize(
+        ("name", "season", "episode"),
+        [("第01話 冒険の終わり.mkv", None, 1), ("第2期 第05話 冒険の終わり.mkv", 2, 5)],
+    )
+    def test_a_name_that_starts_with_its_marks_takes_its_show_from_the_folder(
+        self, name: str, season: int | None, episode: int
+    ):
+        # What follows the episode's mark is its own title, not the show's.
+        result = parsed(rf"D:\Anime\葬送のフリーレン\{name}")
+
+        assert (result.kind, result.best_title, result.season, result.episode) == (
+            Kind.EPISODE,
+            "葬送のフリーレン",
+            season,
+            episode,
+        )
+
+    @pytest.mark.parametrize(
+        "name", ["[Group] 【推しの子】 - 01 [1080p].mkv", "【推しの子】 第01話.mkv"]
+    )
+    def test_a_title_in_lenticular_brackets_is_the_title(self, name: str):
+        # anitopy reads 【】 as a group's brackets; 【推しの子】 is the show's own name.
+        result = parsed(rf"D:\Anime\{name}")
+
+        assert (result.kind, result.title, result.episode) == (Kind.EPISODE, "推しの子", 1)
+
+    def test_lenticular_brackets_beside_a_shows_folder_are_a_groups(self):
+        result = parsed(r"D:\Anime\Oshi no Ko\【MMSUB】 - 01.mkv")
+
+        assert (result.best_title, result.episode) == ("Oshi no Ko", 1)
+
+
+class TestOddNames:
+    def test_a_film_named_as_its_own_folder_keeps_its_number(self):
+        result = parsed(r"D:\Anime\Movies\Jujutsu Kaisen 0 (2021)\Jujutsu Kaisen 0 (2021).mkv")
+
+        assert (result.kind, result.title, result.year, result.episode) == (
+            Kind.MOVIE,
+            "Jujutsu Kaisen 0",
+            2021,
+            None,
+        )
+
+    def test_a_film_in_a_folder_of_its_own_keeps_what_its_name_says_of_the_release(self):
+        film = "Paprika (2006) [1080p]"
+        result = parsed(rf"D:\Anime\Movies\{film}\{film}.mkv")
+
+        assert (result.kind, result.title, result.year, result.height) == (
+            Kind.MOVIE,
+            "Paprika",
+            2006,
+            1080,
+        )
+
+    def test_a_numbered_film_in_a_folder_of_its_own_is_found_by_its_own_name(self):
+        film = "Dragon Ball Z - Movie 03 - The Tree of Might (1990)"
+        result = parsed(rf"D:\Anime\Movies\{film}\{film}.mkv")
+
+        assert (result.kind, result.title, result.series, result.year) == (
+            Kind.MOVIE,
+            "Dragon Ball Z: The Tree of Might",
+            "Dragon Ball Z",
+            1990,
+        )
+
+    def test_a_circled_number_is_no_number(self):
+        # It's a digit to Python, but not one int() reads.
+        assert parsed(r"D:\Anime\Show\Show - ①.mkv").episode is None
+
+    def test_only_full_width_letters_and_digits_are_read_as_plain(self):
+        # "½" stays as it is, as AniList writes it: Ranma ½.
+        assert parsed(r"D:\Anime\Ranma ½\Ranma ½ - 01.mkv").title == "Ranma ½"
+
+    def test_a_title_ending_in_end_keeps_it(self):
+        # anitopy reads "End" as a release's word, as in "- 12 END".
+        result = parsed(r"D:\Anime\Seraph of the End\Seraph of the End - 01.mkv")
+
+        assert (result.title, result.episode) == ("Seraph of the End", 1)
+
+    def test_scene_dots_dont_stay_in_the_title_nor_release_words_in_the_episodes(self):
+        result = parsed(r"D:\Anime\Spy x Family\Spy.x.Family.S01E01.1080p.WEB.h264-SENPAI.mkv")
+
+        assert (result.title, result.season, result.episode, result.episode_title) == (
+            "Spy x Family",
+            1,
+            1,
+            None,
+        )

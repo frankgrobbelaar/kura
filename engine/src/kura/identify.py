@@ -17,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
-from pathlib import PureWindowsPath
+from pathlib import PurePath, PureWindowsPath
 from typing import Literal
 
 from kura import credentials
@@ -42,7 +42,14 @@ from kura.core.identify import (
 )
 from kura.core.identify import pick_hit as pick_tmdb
 from kura.core.names import Kind, ParsedName, parse_name
-from kura.core.placing import How, Placement, lists_special, named_special, place
+from kura.core.placing import (
+    How,
+    Placement,
+    lists_special,
+    named_special,
+    numbered_through,
+    place,
+)
 from kura.titles import show_of
 from kura.tmdb import Tmdb
 from kura.web import Send, WebError
@@ -288,15 +295,19 @@ class Identifier:
             raise LookupError(f"AniList has no entry {anilist_id}.")
         home = self._title_for(conn, entry, self._tmdb())
         film = home.film or entry.kind is TitleKind.MOVIE or kinds[file_id] is Kind.MOVIE
+        files = _facts(conn, list(kinds))
+        through: set[int] = set() if film else _numbered_through(conn, files, home)
         chosen: list[tuple[FileFacts, Placement | None, Kind]] = []
         unfit: list[int] = []
-        for facts in _facts(conn, list(kinds)):
+        for facts in files:
             as_kind = kinds[facts.id]
             parsed = replace(facts.parsed, kind=as_kind)
             if facts.id == file_id and episode is not None:
                 parsed = replace(parsed, episode=episode, episode_end=None)
                 if as_kind is Kind.SPECIAL:
                     parsed = replace(parsed, season=0)
+            elif facts.id in through:
+                parsed = replace(parsed, folder_season=None)  # its number places it
             where = None if film else _placement(parsed, entry, home)
             if where is None and not film and (as_kind is Kind.EPISODE or facts.id in kept):
                 if facts.id == file_id:
@@ -426,10 +437,13 @@ class Identifier:
         entry = best.anime
         home = self._title_for(conn, entry, tmdb)
         film = home.film or entry.kind is TitleKind.MOVIE  # a file is the whole title
-        placements: dict[int, Placement | None] = {
-            facts.id: None if film else _placement(facts.parsed, entry, home)
-            for facts in group.files
-        }
+        through: set[int] = set() if film else _numbered_through(conn, group.files, home)
+        placements: dict[int, Placement | None] = {}
+        for facts in group.files:
+            parsed = facts.parsed
+            if facts.id in through:
+                parsed = replace(parsed, folder_season=None)  # its number places it
+            placements[facts.id] = None if film else _placement(parsed, entry, home)
         clashing = _clashes(group.files, placements)
         own = (
             {} if film else self._by_own_names(conn, group, home, placements, clashing, entry, tmdb)
@@ -837,6 +851,43 @@ def _placement(parsed: ParsedName, entry: Anime, home: _Home) -> Placement | Non
     if home.show is not None:
         return place(parsed, home.show, entry)
     return _by_anilist_number(parsed, entry)
+
+
+def _numbered_through(
+    conn: sqlite3.Connection, files: Sequence[FileFacts], home: _Home
+) -> set[int]:
+    """The files in a season's folder that count straight through their show (see
+    numbered_through), told by every video of the show in their release's season folders: those
+    placed before too, so a file identified on its own goes as they did."""
+    if home.show is None or home.specials:
+        return set()
+    ids = {facts.id for facts in files}
+    releases = {  # the folders above a season's whose files go without it: "S01E05" says all
+        facts.path.parent.parent
+        for facts in files
+        if facts.parsed.folder_season and facts.parsed.season is None
+    }
+    beside: list[FileFacts] = []
+    for release in releases:
+        beside += [facts for facts in _placed_in(conn, release, home) if facts.id not in ids]
+    return numbered_through([*files, *beside], home.show) & ids
+
+
+def _placed_in(conn: sqlite3.Connection, release: PurePath, home: _Home) -> list[FileFacts]:
+    """The title's videos in the folders of a release's folder ("[Group] Show (S01-S07)\\Show
+    Season 02"), by their names. Only the title's: other shows' share a library's folder."""
+    inside = str(release).rstrip("\\/") + "\\"
+    rows = conn.execute(
+        """SELECT id, path FROM files
+           WHERE gone_at IS NULL AND title_id = ? AND lower(substr(path, 1, ?)) = lower(?)""",
+        (home.title_id, len(inside), inside),
+    ).fetchall()
+    paths = [(row["id"], PureWindowsPath(row["path"])) for row in rows]
+    return [
+        FileFacts(file_id, path, parse_name(path), None)
+        for file_id, path in paths
+        if str(path.parent.parent).casefold() == str(release).casefold()
+    ]
 
 
 def _which_episode(entry: Anime, number: int | None) -> str:

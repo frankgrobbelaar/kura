@@ -25,6 +25,9 @@ from tests.shelf import NOW, identify, library
 
 COWBOY_BEBOP = json.loads((SAVED / "cowboy-bebop.json").read_text(encoding="utf-8"))
 YOSEATSUME = next(m for m in COWBOY_BEBOP["data"]["Page"]["media"] if m["id"] == 4037)
+# The owner's own My Hero Academia: a pack that numbers the show 1 to 159 through its seasons.
+PACK = "[Anime Time] Boku No Hero Academia (My Hero Academia) (S01-S07+Movies+OVAs) [BD]"
+HEROES = "[Anime Time] My Hero Academia"
 
 
 def placed(conn: sqlite3.Connection) -> dict[str, tuple[object, ...]]:
@@ -69,6 +72,80 @@ def test_with_a_tmdb_key_every_episode_lands_in_tmdbs_seasons(
     still = "SELECT still FROM episodes WHERE season = 5 AND number = 11"
     assert conn.execute(still).fetchone()[0] == "/still-12971-5-11.jpg"
     assert done.sure == 3
+
+
+def test_a_pack_numbered_straight_through_its_season_folders_lands_in_tmdbs_seasons(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    # AniList keeps each season apart; the pack's folders hold them, numbered straight through,
+    # with its films and OVAs by name.
+    credentials.save(paths, "tmdb", "a-test-key")
+    library(
+        conn,
+        root,
+        [
+            f"{PACK}/{HEROES} Season 01/{HEROES} - 01.mkv",
+            f"{PACK}/{HEROES} Season 02/{HEROES} - 14.mkv",
+            f"{PACK}/{HEROES} Season 02/{HEROES} - 15.mkv",
+            f"{PACK}/{HEROES} Season 07/{HEROES} - 159.mkv",
+            f"{PACK}/OVA/{HEROES} OVA - Make It! Do-or-Die Survival Training, Part 2.mkv",
+        ],
+    )
+    library(conn, root, [f"{PACK}/{HEROES} Movies/{HEROES} Movie 01 - Two Heroes.mkv"], minutes=96)
+
+    done = identify(paths, conn, internet())
+
+    show = "My Hero Academia"
+    assert placed(conn) == {
+        f"{HEROES} - 01.mkv": ("sure", show, "series", 1, 1),
+        f"{HEROES} - 14.mkv": ("sure", show, "series", 2, 1),
+        f"{HEROES} - 15.mkv": ("sure", show, "series", 2, 2),
+        f"{HEROES} - 159.mkv": ("sure", show, "series", 7, 21),
+        f"{HEROES} Movie 01 - Two Heroes.mkv": ("sure", f"{show}: Two Heroes", "movie", None, None),
+        f"{HEROES} OVA - Make It! Do-or-Die Survival Training, Part 2.mkv": (
+            "sure",
+            show,
+            "series",
+            0,
+            2,
+        ),
+    }
+    assert done.unsure == 0
+
+
+def test_a_file_identified_on_its_own_goes_as_its_releases_other_seasons_do(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    # "14" and "15" fit season 2 either way; season 7's folder says the pack counts straight
+    # through, for a file identified later on its own too.
+    credentials.save(paths, "tmdb", "a-test-key")
+    files = [(2, 14), (2, 15), (7, 159)]
+    library(conn, root, [f"{PACK}/{HEROES} Season 0{s}/{HEROES} - {n}.mkv" for s, n in files])
+    identify(paths, conn, internet())
+    ids = {Path(row["path"]).name: row["id"] for row in conn.execute("SELECT id, path FROM files")}
+    owner = Identifier(paths, internet(), now=lambda: NOW)
+
+    owner.choose(conn, ids[f"{HEROES} - 15.mkv"], 21459, Kind.EPISODE)
+
+    assert placed(conn)[f"{HEROES} - 14.mkv"] == ("sure", "My Hero Academia", "series", 2, 1)
+    assert placed(conn)[f"{HEROES} - 15.mkv"] == ("sure", "My Hero Academia", "series", 2, 2)
+
+
+def test_the_owner_placing_one_file_of_a_folder_counted_straight_through_places_it_so(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    # Alone, "20" in season 2's folder could be its 20th; the folder's "38" says it counts on
+    # from season 1's 13.
+    credentials.save(paths, "tmdb", "a-test-key")
+    season = f"{PACK}/{HEROES} Season 02"
+    library(conn, root, [f"{season}/{HEROES} - {n}.mkv" for n in (14, 20, 38)])
+    identify(paths, conn, internet())
+    ids = {Path(row["path"]).name: row["id"] for row in conn.execute("SELECT id, path FROM files")}
+    owner = Identifier(paths, internet(), now=lambda: NOW)
+
+    owner.choose(conn, ids[f"{HEROES} - 20.mkv"], 21459, Kind.EPISODE)
+
+    assert placed(conn)[f"{HEROES} - 20.mkv"] == ("sure", "My Hero Academia", "series", 2, 7)
 
 
 def test_a_film_is_its_own_title(paths: DataPaths, conn: sqlite3.Connection, root: Path):

@@ -86,8 +86,30 @@ asked too, and AniList for TMDB's names for what it finds (see [tmdb.md](tmdb.md
 can't find a name"). A series' special its show's list doesn't name is looked up the same way by
 its own name read as the series' ("Dragon Ball Z: A Hero's Legacy"); a one-off found so goes
 into its show's specials by the day it first aired, or by its names there, or is a title of its
-own (`_by_own_names` in [kura/identify.py](../../engine/src/kura/identify.py)). Names are compared
-without accents on Latin letters ("Pokémon" is "pokemon").
+own (`_by_own_names` in [kura/identify.py](../../engine/src/kura/identify.py)). A name with
+another after it in brackets, as releases give both (`Ore dake Level Up na Ken (Solo Leveling)`),
+finds nothing as it is, so each is asked for too. Names are compared without accents on Latin
+letters ("Pokémon" is "pokemon"), and a name that is the main part of an entry's, before its
+subtitle, fits it nearly as well as the whole (`name_fit`): "Demon Slayer" is "Demon Slayer:
+Kimetsu no Yaiba" more than it is Onigiri, a series of four-minute episodes also known as
+"Demon Slayer". Not for a film: a series' films share its name before theirs, so a film named
+for its series alone could be any of them, and waits for the owner.
+
+## A show numbered straight through its seasons
+
+AniList keeps every season apart (My Hero Academia is nine entries), but a release may number the
+whole show straight through: `My Hero Academia - 159` is season 7's last. A season's episode
+count alone would count against it ("only 13 episodes, files go up to 159"), so its sequels among
+the entries found are counted with it, the first to air at each step (`_run` in
+[kura/core/identify.py](../../engine/src/kura/core/identify.py)). When the files go no further
+than those together, or the sequels go on past what the search found, nothing counts against
+them; nothing counts for them either, or a remake whose seasons hold as many would fit as well as
+the series the files fit alone (Fruits Basket's 2019 remake and its sequels hold the 2001
+series' 26). The last season, with no sequels to carry the count, still doesn't fit. TMDB's
+seasons then place each file by its number (see [tmdb.md](tmdb.md)), a season's folder that
+counts on from the seasons before it too: a folder whose numbers would fit either way (14 to 25
+in season 2's) goes as the release's other seasons' folders do, the show's videos placed there
+before counted with the files being placed, so one identified later on its own goes as they did.
 
 ## Without a TMDB key
 
@@ -100,7 +122,9 @@ count as aired when Kura looks for gaps.
 ## Tests
 
 `tests/data/anilist/` holds real AniList answers (Dragon Ball Z, Cowboy Bebop, Attack on Titan
-Season 3 Part 2, One Piece, and the searches for The Tree of Might, "Dragonball" and Dragon Ball
-GT), saved once, so parsing is tested against what AniList really sends. No test reaches AniList
+Season 3 Part 2, One Piece, My Hero Academia, Seraph of the End, Demon Slayer, Fruits Basket, and
+the searches
+for The Tree of Might, "Dragonball" and Dragon Ball GT), saved once with their synopses left out,
+so parsing is tested against what AniList really sends. No test reaches AniList
 itself: `tests/fake_web.py` answers instead, with `tests/services.py`'s answers to exact searches
 first (as AniList, a search with a word no name has finds nothing) and kinder ones after.
