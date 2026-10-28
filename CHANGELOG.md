@@ -8,6 +8,10 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+### Changed
+- The engine is built with the newest versions of the libraries it uses: FastAPI 0.162 and
+  Starlette 1.10.
+
 ## 1.4.0 - 2026-10-28
 
 ### Changed

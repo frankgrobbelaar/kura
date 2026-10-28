@@ -35,7 +35,7 @@ Every tool Kura uses, its version on 2026-10-10, and the page that explains how 
 | Python | 3.14 | The engine's language | [python.md](stack/python.md) |
 | uv | 0.13 | Python, packages, lockfile, running tools | [python.md](stack/python.md) |
 | Ruff, Pyright | 0.17, 1.1.414 | Python lint, format and strict types | [python.md](stack/python.md) |
-| FastAPI, Uvicorn, Pydantic | 0.143, 0.54, 2.14 | The engine's local API | [fastapi.md](stack/fastapi.md) |
+| FastAPI, Uvicorn, Pydantic | 0.162, 0.54, 2.14 | The engine's local API | [fastapi.md](stack/fastapi.md) |
 | Typer | 0.27 | The engine's command line | [fastapi.md](stack/fastapi.md) |
 | SQLite | bundled with Python | Kura's one database file | [sqlite.md](stack/sqlite.md) |
 | anitopy | 2.1.1 | Reading anime file names | [anitopy.md](stack/anitopy.md) |
