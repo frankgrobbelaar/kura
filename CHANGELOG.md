@@ -8,6 +8,8 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+## 1.4.0 - 2026-10-28
+
 ### Changed
 - The window is built with the newest versions of the libraries it uses: React Router 8.5,
   TanStack Query 5.105, Lucide's icons 1.61 and Vite 8.3.5.
