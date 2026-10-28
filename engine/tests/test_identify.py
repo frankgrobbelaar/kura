@@ -12,15 +12,22 @@ import pytest
 from kura import credentials
 from kura.anilist import API as ANILIST
 from kura.config import DataPaths
-from kura.core.catalog import anime_list
+from kura.core import catalog
+from kura.core.catalog import TitleKind, anime_list
 from kura.core.names import Kind
-from kura.identify import Identifier, UnplacedError, identify_again, save_anilist_title
+from kura.identify import (
+    Identifier,
+    UnplacedError,
+    identify_again,
+    save_anilist_title,
+    save_show,
+)
 from kura.library import find_files, folders, read_file, unread
-from kura.titles import title
+from kura.titles import franchises, title
 from kura.tmdb import API as TMDB
 from tests.fake_ffprobe import REPORT
 from tests.fake_web import reply
-from tests.services import SAVED, internet
+from tests.services import DBZ_DETAILS, SAVED, internet
 from tests.shelf import NOW, identify, library
 
 COWBOY_BEBOP = json.loads((SAVED / "cowboy-bebop.json").read_text(encoding="utf-8"))
@@ -316,9 +323,78 @@ def test_a_name_only_tmdb_knows_is_found_through_it(
     identify(paths, conn, web)
 
     assert placed(conn) == {"Bola de Dragon Z - 001.mkv": ("sure", "Dragon Ball Z", "series", 1, 1)}
-    [guess, *_] = json.loads(conn.execute("SELECT guesses FROM files").fetchone()[0])
-    assert guess["reasons"][0] == "TMDB knows it as Dragon Ball Z"
+    found = json.loads(conn.execute("SELECT guesses FROM files").fetchone()[0])
+    assert found[0]["reasons"][0] == "TMDB knows it as Dragon Ball Z"
+    assert all(guess["anilistId"] is not None for guess in found)  # AniList has it
     assert f"GET {TMDB}/tv/12971/alternative_titles" in web.paths()
+
+
+def test_a_film_anilist_doesnt_list_is_found_on_tmdb_alone(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    # The Red Turtle, a co-production of Studio Ghibli's, isn't on AniList at all.
+    credentials.save(paths, "tmdb", "a-test-key")
+    turtle = "The Red Turtle (2016).mp4"
+    library(conn, root, [f"Movies/The Red Turtle (2016)/{turtle}"], minutes=80)
+
+    done = identify(paths, conn, internet())
+
+    assert placed(conn) == {turtle: ("sure", "The Red Turtle", "movie", None, None)}
+    row = conn.execute("SELECT * FROM titles").fetchone()
+    assert (row["tmdb_type"], row["tmdb_id"], row["anilist_id"]) == ("movie", 337703, None)
+    assert conn.execute("SELECT anilist_id FROM files").fetchone()[0] is None
+    [guess] = json.loads(conn.execute("SELECT guesses FROM files").fetchone()[0])
+    assert (guess["anilistId"], guess["tmdbType"], guess["tmdbId"]) == (None, "movie", 337703)
+    assert guess["reasons"][0] == "Only TMDB knows it"
+    [shelved] = franchises(conn, NOW.date())  # a franchise of its own
+    assert [found.name for found in shelved.titles] == ["The Red Turtle"]
+    assert done.sure == 1
+
+
+# The Red Turtle as AniList would list it, were it to.
+LISTED_TURTLE = {
+    "id": 99999,
+    "title": {"english": "The Red Turtle", "romaji": "Red Turtle", "native": None},
+    "format": "MOVIE",
+    "episodes": 1,
+    "duration": 80,
+    "startDate": {"year": 2016, "month": 6, "day": 29},
+    "status": "FINISHED",
+}
+
+
+def test_a_film_only_tmdb_knew_takes_the_anilist_entry_matched_to_it_later(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    credentials.save(paths, "tmdb", "a-test-key")
+    library(conn, root, ["Movies/The Red Turtle (2016)/The Red Turtle (2016).mp4"], minutes=80)
+    identify(paths, conn, internet())  # TMDB's alone
+    [(file_id, title_id)] = conn.execute("SELECT id, title_id FROM files").fetchall()
+    web = internet()
+    web.answers[f"POST {ANILIST}"] = lambda asked: (
+        {"data": {"Media": LISTED_TURTLE}}
+        if "id" in cast("dict[str, object]", asked.payload["variables"])
+        else {"data": {"Page": {"media": [LISTED_TURTLE]}}}
+    )
+
+    Identifier(paths, web, now=lambda: NOW).rematch(conn, title_id, file_id, 99999, Kind.MOVIE)
+
+    row = conn.execute("SELECT t.id, t.anilist_id FROM titles AS t").fetchone()
+    assert tuple(row) == (title_id, 99999)  # the same title, now AniList's too
+
+
+def test_a_show_only_tmdb_knew_takes_the_anilist_entry_matched_to_it_later(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    credentials.save(paths, "tmdb", "a-test-key")
+    dbz = catalog.show(DBZ_DETAILS)
+    assert dbz is not None
+    save_show(conn, dbz, TitleKind.SERIES, None, NOW)  # TMDB's alone, its list fresh
+    library(conn, root, ["Dragon Ball Z (1989)/Dragon Ball Z - 001.mkv"])
+
+    identify(paths, conn, internet())
+
+    assert conn.execute("SELECT anilist_id FROM titles").fetchone()[0] == 813
 
 
 def test_tmdb_turning_the_key_away_leaves_what_anilist_found(

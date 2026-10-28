@@ -191,14 +191,15 @@ function MatchFile(props: {
   const found = useMatchSearch(file.id, asked);
   const searching = asked.trim().length >= 2;
   const guesses = searching ? (found.data ?? []) : file.guesses;
-  const [picked, setPicked] = useState<number | null>(file.guesses[0]?.anilistId ?? null);
+  const first = file.guesses[0];
+  const [picked, setPicked] = useState<string | null>(first ? guessKey(first) : null);
   const [kind, setKind] = useState<Kind>(asKind(file.kind));
   // An episode's number starts as its name gives it; a special's starts blank.
   const named = file.episode === null ? "" : String(file.episode);
   const [numbers, setNumbers] = useState({ episode: named, special: "" });
   const number = kind === "movie" ? "" : numbers[kind];
   const [together, setTogether] = useState(true);
-  const chosen = guesses.find((guess) => guess.anilistId === picked) ?? null;
+  const chosen = guesses.find((guess) => guessKey(guess) === picked) ?? null;
   const busy = choose.isPending || ignore.isPending;
 
   // 1, 2 or 3 picks a guess, as the board says, unless the owner is typing.
@@ -207,7 +208,7 @@ function MatchFile(props: {
       if (event.target instanceof HTMLInputElement || event.ctrlKey || event.altKey) return;
       const index = ["1", "2", "3"].indexOf(event.key);
       const guess = guesses[index];
-      if (guess) setPicked(guess.anilistId);
+      if (guess) setPicked(guessKey(guess));
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -220,10 +221,15 @@ function MatchFile(props: {
     const episode = given ? Number(number) : undefined;
     // A whole title goes at once, each file keeping its kind; or the file, with its alike.
     const which = forTitle ? { title: forTitle.id } : { also: together ? file.alike : [] };
+    // An AniList entry by its number, or a show or film only TMDB knows by TMDB's.
+    const entry =
+      chosen.anilistId !== null
+        ? { anilistId: chosen.anilistId }
+        : { tmdbType: chosen.tmdbType, tmdbId: chosen.tmdbId };
     choose.mutate(
       {
         path: `/review/${file.id}`,
-        body: { anilistId: chosen.anilistId, kind, episode, ...which },
+        body: { ...entry, kind, episode, ...which },
       },
       {
         onSuccess: (answer) => {
@@ -310,12 +316,12 @@ function MatchFile(props: {
           {guesses.length > 0 ? (
             <RadioGroup.Root
               aria-label="Pick the anime"
-              value={picked === null ? "" : String(picked)}
-              onValueChange={(value) => setPicked(Number(value))}
+              value={picked ?? ""}
+              onValueChange={setPicked}
               className="flex flex-col gap-2.5"
             >
               {guesses.slice(0, searching ? 6 : 3).map((guess, index) => (
-                <GuessOption key={guess.anilistId} guess={guess} index={index} file={file} />
+                <GuessOption key={guessKey(guess)} guess={guess} index={index} file={file} />
               ))}
             </RadioGroup.Root>
           ) : (
@@ -506,7 +512,7 @@ function GuessOption({ guess, index, file }: { guess: Guess; index: number; file
   ].filter(Boolean);
   return (
     <RadioGroup.Item
-      value={String(guess.anilistId)}
+      value={guessKey(guess)}
       className="press flex cursor-pointer items-center gap-3.5 rounded-18 border-2 border-edge bg-glass px-3.5 py-3 text-left data-[state=checked]:border-accent data-[state=checked]:bg-accent/10"
     >
       <span className="w-5.5 shrink-0 font-mono text-12 text-fg-muted">
@@ -717,6 +723,13 @@ function asKind(kind: WaitingFile["kind"]): Kind {
   if (kind === "movie") return "movie";
   if (kind === "special" || kind === "extra") return "special";
   return "episode";
+}
+
+/** A guess's key among the others: its AniList entry, or the show or film only TMDB knows. */
+function guessKey(guess: Guess): string {
+  return guess.anilistId !== null
+    ? `anilist ${guess.anilistId}`
+    : `tmdb ${guess.tmdbType} ${guess.tmdbId}`;
 }
 
 function confirmText(guess: Guess, kind: Kind, number: string): string {

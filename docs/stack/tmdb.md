@@ -39,7 +39,7 @@ Kura works without a key: it still identifies each anime with AniList, without e
 | `GET /3/search/tv?query=…&first_air_date_year=…` | Finding a show |
 | `GET /3/search/movie?query=…&primary_release_year=…` | Finding a film |
 | `GET /3/tv/{id}`, then again with `append_to_response=season/0,season/1,…` (20 at most per request) | A show with every episode of every season |
-| `GET /3/movie/{id}` | A film |
+| `GET /3/movie/{id}` | A film (and one only TMDB knows, as the owner chooses it) |
 | `GET /3/tv/{id}/alternative_titles`, `GET /3/movie/{id}/alternative_titles` | The other names a show or film goes by, when a name AniList can't find leads TMDB to it |
 | `GET /3/tv/{id}/images`, `GET /3/movie/{id}/images` with `include_image_language=en,ja,null` | The posters to choose from for a title (kept a day) |
 | `https://image.tmdb.org/t/p/w342{poster_path}` | A poster |
@@ -71,6 +71,20 @@ asked of AniList by TMDB's names for it, and AniList's entries become guesses sc
 files bore TMDB's name, no surer than TMDB's fit (`through_tmdb`), with "TMDB knows it as …"
 first among their reasons. A sure one is matched; the rest wait on the review screen, whose
 search asks TMDB the same way. TMDB away or refusing the key leaves AniList's guesses as they are.
+
+A show or film AniList doesn't list at all is TMDB's alone: The Red Turtle, a co-production of
+Studio Ghibli's with French and Belgian studios, isn't on AniList by any of its names. When none of
+the entries AniList finds by TMDB's names is the show or film TMDB found (`pick_hit`, as a title's
+TMDB show is picked) or goes by its name, an animated one is a guess of its own (`tmdb_alone` in
+core/identify.py): scored as AniList's entries are, by every name TMDB knows it by, no surer than
+TMDB's fit, with "Only TMDB knows it" first among its reasons. AniList's namesake of a find is the
+one an anime library means, and live action never is. Its episode count and length can't be checked
+as an entry's are, so it's sure only when the files' year is its year (The Red Turtle (2016) is);
+otherwise it waits for the owner, first among the guesses. Its title has TMDB's list and no AniList
+entry (`anilist_id` is empty, till a file matched to an AniList entry of the same show or film
+gives it one), so it's a franchise of its own, with nothing missing from it, and its About panel is
+TMDB's. On the review screen the owner chooses it by TMDB's kind and number (`tmdbType`, `tmdbId`)
+instead of an AniList entry's.
 
 ## Limits and errors
 

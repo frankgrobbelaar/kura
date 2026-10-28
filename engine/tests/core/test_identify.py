@@ -21,6 +21,7 @@ from kura.core.identify import (
     similarity,
     spelled_out,
     through_tmdb,
+    tmdb_alone,
     tmdb_fit,
 )
 from kura.core.names import parse_name
@@ -348,6 +349,61 @@ def test_anilists_entries_for_a_tmdb_find_are_no_surer_than_it_fits():
     assert sure[0].reasons[0] == "TMDB knows it as Dragon Ball Z"
     assert doubtful[0].confidence == 60
     assert all(guess.confidence >= WORTH_SHOWING for guess in doubtful)
+
+
+def test_a_film_anilist_doesnt_list_is_a_guess_of_tmdbs_own():
+    # The Red Turtle, a co-production of Studio Ghibli's, isn't on AniList at all.
+    turtle = r"D:\Anime\Movies\The Red Turtle (2016)\The Red Turtle (2016).mp4"
+    [film] = group_files([facts(turtle, minutes=80)])
+    hit = shown("The Red Turtle", year=2016, original_title="La Tortue rouge", poster="/r.jpg")
+
+    [sure] = tmdb_alone(film, hit, tmdb_fit(film, hit, 0), [])
+    [doubtful] = tmdb_alone(film, hit, 60, [])
+
+    assert (sure.anime.tmdb, sure.anime.anilist_id, sure.anime.cover) == (
+        ("movie", 1),
+        None,
+        "/r.jpg",
+    )
+    assert sure.confidence >= SURE
+    assert sure.reasons[:2] == ("Only TMDB knows it", "Title matches")
+    assert doubtful.confidence == 60
+
+
+def test_a_film_tmdb_knows_by_another_name_fits_by_that_name():
+    [film] = group_files([facts(r"D:\Anime\Movies\Reddo Taatoru (2016).mp4", minutes=80)])
+    hit = shown("The Red Turtle", year=2016, original_title="La Tortue rouge")
+
+    [guess] = tmdb_alone(film, hit, 100, [], ["Reddo Taatoru"])
+
+    assert guess.confidence >= SURE
+    assert "Reddo Taatoru" in guess.anime.titles
+
+
+def test_a_namesake_of_a_title_anilist_lists_is_no_guess_of_tmdbs_own():
+    # TMDB ranks another "Dragon Ball Z" first, a cartoon from elsewhere: AniList's of that name is
+    # the one meant, though it isn't TMDB's find.
+    [episodes] = group_files([facts(r"D:\Anime\Dragon Ball Z\Dragon Ball Z - 300.mkv")])
+    cartoon = shown("Dragon Ball Z", year=2010, media="tv", japanese=False)
+
+    assert tmdb_alone(episodes, cartoon, 88, entries("dragon-ball-z")) == []
+
+
+def test_live_action_is_never_a_guess_of_tmdbs_own():
+    [film] = group_files([facts(r"D:\Anime\Movies\Red Turtle (2016).mkv", minutes=80)])
+    drama = shown("Red Turtle", year=2016, animation=False)
+
+    assert tmdb_alone(film, drama, 100, []) == []
+
+
+def test_without_a_year_that_fits_a_guess_of_tmdbs_own_waits_for_the_owner():
+    # Its episode count and length can't be checked, as an AniList entry's are.
+    [episodes] = group_files([facts(r"D:\Anime\Wind Show\Wind Show - 01.mkv")])
+    cartoon = shown("Wind Show", year=1990, media="tv", japanese=False)
+
+    [guess] = tmdb_alone(episodes, cartoon, 88, [])
+
+    assert guess.confidence < SURE
 
 
 def test_guesses_from_several_lookups_keep_each_entry_at_its_surest():

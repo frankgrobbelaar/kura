@@ -1139,7 +1139,10 @@ export const useFranchiseMissing = (id: number) =>
 
 /** One of Kura's guesses for a file it couldn't place surely. */
 export interface Guess {
-  anilistId: number;
+  /** Null for a show or film only TMDB knows (`tmdbType`, `tmdbId`): AniList doesn't list it. */
+  anilistId: number | null;
+  tmdbType: "tv" | "movie" | null;
+  tmdbId: number | null;
   title: string;
   kind: TitleKind | null;
   year: number | null;
@@ -1178,8 +1181,9 @@ export interface WaitingFile {
 export const useReview = (title: number | null = null) =>
   useEngineQuery<WaitingFile[]>(title === null ? "/review" : `/review?title=${title}`);
 /**
- * AniList's entries for `text`, scored against one file; asked only for two letters or more. The
- * last answer stays on screen while the next loads.
+ * AniList's entries for `text`, scored against one file, and the show or film TMDB finds by it that
+ * AniList doesn't list; asked only for two letters or more. The last answer stays on screen while
+ * the next loads.
  */
 export const useMatchSearch = (fileId: number, text: string) =>
   useEngineQuery<Guess[]>(
@@ -1198,7 +1202,8 @@ export interface Chosen {
 
 /**
  * The owner's choice: `choose.mutate({ path: "/review/7", body: { anilistId, kind, also, episode } })`,
- * or with `title` instead of `also`, a whole title's new match (each file keeps its kind).
+ * with `tmdbType` and `tmdbId` instead of `anilistId` for a show or film only TMDB knows, or with
+ * `title` instead of `also`, a whole title's new match (each file keeps its kind).
  */
 export const useChooseMatch = () =>
   useEngineAction<Chosen>(["/review", "/titles", "/franchises", "/scan", "/library", "/tidy"]);

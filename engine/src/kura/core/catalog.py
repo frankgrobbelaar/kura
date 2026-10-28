@@ -8,6 +8,7 @@ the artwork.
 
 import html
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
@@ -42,6 +43,9 @@ _KINDS = {
 # yet, it was stopped, or it's resting before it goes on.
 type Status = Literal["finished", "airing", "coming", "cancelled", "paused"]
 
+# A show or a film on TMDB, by its number there: TMDB numbers each kind apart.
+type TmdbRef = tuple[Literal["tv", "movie"], int]
+
 
 @dataclass(frozen=True)
 class Related:
@@ -56,7 +60,8 @@ class Related:
 
 @dataclass(frozen=True)
 class Anime:
-    """One AniList entry: a season (each is its own entry there), a film, an OVA or a special."""
+    """One AniList entry: a season (each is its own entry there), a film, an OVA or a special. Or
+    a show or film AniList doesn't list, as TMDB knows it (`tmdb`, made by `tmdb_only`)."""
 
     id: int
     title: str  # the English title when there is one, else the romaji one
@@ -77,6 +82,7 @@ class Anime:
     genres: tuple[str, ...] = ()
     studio: str | None = None  # its main animation studio
     cover_big: str | None = None  # the cover's largest size, for a poster to choose
+    tmdb: TmdbRef | None = None  # a show or film only TMDB knows: no AniList entry is it
 
     @property
     def year(self) -> int | None:
@@ -86,6 +92,11 @@ class Anime:
     def standing(self) -> Status | None:
         """Where it stands, in Kura's words."""
         return _ANILIST_STATUS.get(self.status or "")
+
+    @property
+    def anilist_id(self) -> int | None:
+        """Its number on AniList, as Kura keeps it: None for a show or film only TMDB knows."""
+        return None if self.tmdb else self.id
 
 
 @dataclass(frozen=True)
@@ -100,6 +111,7 @@ class Hit:
     animation: bool
     japanese: bool
     popularity: float
+    poster: str | None = None  # a path on TMDB's image server
 
     @property
     def year(self) -> int | None:
@@ -232,9 +244,39 @@ def hits(answer: Json, media: Literal["tv", "movie"]) -> list[Hit]:
                 animation=_ANIMATION in fields.numbers(result, "genre_ids"),
                 japanese=fields.text(result, "original_language") == "ja" or "JP" in countries,
                 popularity=fields.decimal(result, "popularity") or 0.0,
+                poster=fields.text(result, "poster_path") or None,
             )
         )
     return found
+
+
+def tmdb_only(
+    media: Literal["tv", "movie"],
+    number: int,
+    names: Sequence[str],
+    first_aired: date | None,
+    poster: str | None,
+    minutes: int | None = None,
+) -> Anime:
+    """A show or film AniList doesn't list, as TMDB knows it (The Red Turtle, a co-production of
+    Studio Ghibli's), as an entry to score and match as AniList's are. Its number is below zero,
+    apart from AniList's and from TMDB's other kind, and is never kept: `anilist_id` is None."""
+    titles = _distinct(list(names))
+    return Anime(
+        id=-(2 * number + (1 if media == "tv" else 0)),
+        title=titles[0],
+        titles=titles,
+        kind=TitleKind.MOVIE if media == "movie" else TitleKind.SERIES,
+        episodes=1 if media == "movie" else None,
+        minutes=minutes,
+        start=first_aired,
+        end=None,
+        airing=False,
+        next_episode=None,
+        cover=poster,
+        related=(),
+        tmdb=(media, number),
+    )
 
 
 @dataclass(frozen=True)

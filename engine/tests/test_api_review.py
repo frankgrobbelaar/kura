@@ -206,6 +206,58 @@ def test_searching_by_a_name_only_tmdb_knows_finds_it_through_tmdb(
     assert found[0]["reasons"][0] == "TMDB knows it as Dragon Ball Z"
 
 
+@pytest.fixture
+def turtle(paths: DataPaths, conn: sqlite3.Connection, root: Path, web: FakeWeb) -> int:
+    """The Red Turtle, which AniList doesn't list, waiting since a scan without a TMDB key."""
+    library(conn, root, ["Movies/The Red Turtle (2016)/The Red Turtle (2016).mp4"], minutes=80)
+    identify(paths, conn, internet())
+    web.answers.update(internet().answers)
+    credentials.save(paths, "tmdb", "a-test-key")
+    return conn.execute("SELECT id FROM files").fetchone()[0]
+
+
+@pytest.mark.parametrize(
+    "name", ["the red turtle", "La Tortue rouge", "レッドタートル ある島の物語"]
+)
+def test_a_film_anilist_doesnt_list_is_found_on_tmdb_by_any_of_its_names(
+    client: TestClient, turtle: int, name: str
+):
+    [found] = client.get(f"/review/{turtle}/search", params={"q": name}).json()
+
+    assert (found["anilistId"], found["tmdbType"], found["tmdbId"]) == (None, "movie", 337703)
+    assert (found["title"], found["kind"], found["year"]) == ("The Red Turtle", "movie", 2016)
+    assert found["cover"] == "/poster-movie-337703.jpg"
+    assert found["reasons"][0] == "Only TMDB knows it"
+    assert found["confidence"] >= 75
+
+
+def test_choosing_a_film_only_tmdb_knows_makes_it_a_title_of_tmdbs_alone(
+    client: TestClient, turtle: int, paths: DataPaths, conn: sqlite3.Connection
+):
+    answer = client.post(
+        f"/review/{turtle}", json={"tmdbType": "movie", "tmdbId": 337703, "kind": "movie"}
+    )
+
+    assert answer.json()["placed"] == 1
+    row = conn.execute(
+        """SELECT f.matched, f.pinned, f.anilist_id, t.tmdb_type, t.tmdb_id, t.anilist_id
+           FROM files AS f JOIN titles AS t ON t.id = f.title_id"""
+    ).fetchone()
+    assert tuple(row) == ("sure", 1, None, "movie", 337703, None)
+    shown = client.get(f"/titles/{answer.json()['titleId']}").json()
+    assert (shown["name"], shown["kind"]) == ("The Red Turtle", "movie")
+
+    identify(paths, conn, internet())  # a rescan
+    row = conn.execute("SELECT pinned, title_id FROM files").fetchone()
+    assert tuple(row) == (1, answer.json()["titleId"])
+
+
+def test_a_choice_names_what_the_file_is(client: TestClient, turtle: int):
+    answer = client.post(f"/review/{turtle}", json={"kind": "movie", "tmdbType": "movie"})
+
+    assert answer.status_code == 422
+
+
 def test_offline_a_choice_changes_nothing_and_says_so(
     client: TestClient, waiting: FakeWeb, conn: sqlite3.Connection
 ):

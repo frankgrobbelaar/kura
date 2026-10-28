@@ -397,4 +397,11 @@ MIGRATIONS: Final[tuple[str, ...]] = (
     UPDATE files SET identified_at = NULL
         WHERE matched IN ('none', 'unsure') AND pinned = 0;
     """,
+    # 30. A show or film AniList doesn't list (The Red Turtle) is found on TMDB alone, as a title
+    #     with no AniList entry: the files waiting for a match are looked up again by the next
+    #     scan; the owner's own choices stay.
+    """
+    UPDATE files SET identified_at = NULL
+        WHERE matched IN ('none', 'unsure') AND pinned = 0;
+    """,
 )

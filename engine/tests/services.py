@@ -1,6 +1,6 @@
 """AniList and TMDB as the tests stand them in: real AniList answers saved in tests/data/anilist,
 and TMDB answers built in TMDB's shape (tests/tmdb_data.py), for Dragon Ball Z, Cowboy Bebop and
-My Hero Academia."""
+My Hero Academia, and The Red Turtle, which only TMDB knows."""
 
 import json
 from collections.abc import Callable, Mapping
@@ -73,6 +73,27 @@ HEROES_DETAILS = tv_details(
 )
 
 
+# The Red Turtle, a co-production of Studio Ghibli's that AniList doesn't list: TMDB knows it by
+# its English and French names, and by its Japanese one among its others.
+RED_TURTLE = 337703
+RED_TURTLE_NAMES = ("the red turtle", "la tortue rouge", "レッドタートル ある島の物語")
+RED_TURTLE_FOUND = {
+    "page": 1,
+    "results": [
+        {
+            "id": RED_TURTLE,
+            "title": "The Red Turtle",
+            "original_title": "La Tortue rouge",
+            "release_date": "2016-06-29",
+            "genre_ids": [16, 14],
+            "original_language": "fr",
+            "poster_path": f"/poster-movie-{RED_TURTLE}.jpg",
+            "popularity": 20.0,
+        }
+    ],
+}
+
+
 def anilist(airing: Mapping[int, int]) -> Callable[[Asked], object]:
     """AniList's searches and entries. `airing` moves a show's next episode on in its answers
     about one entry: what AniList says now, while a search kept from days ago says less."""
@@ -137,6 +158,8 @@ def tmdb_search_movie(asked: Asked) -> object:
         return movie_search((11299, "Cowboy Bebop: The Movie", date(2001, 9, 1)))
     if query.startswith("my hero academia"):
         return movie_search((505262, "My Hero Academia: Two Heroes", date(2018, 8, 3)))
+    if query in RED_TURTLE_NAMES:
+        return RED_TURTLE_FOUND
     return {"results": []}
 
 
@@ -159,5 +182,15 @@ def internet(*, tmdb: bool = True, airing: Mapping[int, int] | None = None) -> F
             f"GET {TMDB}/movie/505262": movie_details(
                 505262, "My Hero Academia: Two Heroes", date(2018, 8, 3), 96
             ),
+            f"GET {TMDB}/movie/{RED_TURTLE}": {
+                **movie_details(RED_TURTLE, "The Red Turtle", date(2016, 6, 29), 80),
+                "original_title": "La Tortue rouge",
+            },
+            f"GET {TMDB}/movie/{RED_TURTLE}/alternative_titles": {
+                "id": RED_TURTLE,
+                "titles": [
+                    {"iso_3166_1": "JP", "title": "レッドタートル ある島の物語", "type": ""}
+                ],
+            },
         }
     return FakeWeb(answers)

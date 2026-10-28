@@ -5,7 +5,16 @@ from datetime import date
 from pathlib import Path
 from typing import cast
 
-from kura.core.catalog import TitleKind, anime, anime_list, film, hits, plain_text, show
+from kura.core.catalog import (
+    TitleKind,
+    anime,
+    anime_list,
+    film,
+    hits,
+    plain_text,
+    show,
+    tmdb_only,
+)
 from kura.core.fields import Json
 from tests.tmdb_data import DBZ_SEASONS, movie_details, tv_details, tv_search
 
@@ -77,6 +86,31 @@ def test_tmdb_search_results_say_whether_they_are_japanese_animation():
     assert (found[0].id, found[0].title, found[0].year) == (12971, "Dragon Ball Z", 1989)
     assert found[0].animation
     assert found[0].japanese
+
+
+def test_tmdb_search_results_carry_their_posters():
+    answer: Json = {"results": [{"id": 337703, "title": "The Red Turtle", "poster_path": "/r.jpg"}]}
+
+    [found] = hits(answer, "movie")
+
+    assert found.poster == "/r.jpg"
+
+
+def test_a_show_or_film_only_tmdb_knows_is_an_entry_apart_from_anilists():
+    names = ["The Red Turtle", "La Tortue rouge", "The Red Turtle"]
+    turtle = tmdb_only("movie", 337703, names, date(2016, 6, 29), "/r.jpg")
+    a_show = tmdb_only("tv", 337703, ["The Red Turtle"], None, None)
+
+    assert (turtle.title, turtle.titles) == (
+        "The Red Turtle",
+        ("The Red Turtle", "La Tortue rouge"),
+    )
+    assert (turtle.kind, turtle.year, turtle.cover) == (TitleKind.MOVIE, 2016, "/r.jpg")
+    assert (turtle.tmdb, turtle.anilist_id) == (("movie", 337703), None)
+    assert a_show.kind is TitleKind.SERIES
+    assert max(turtle.id, a_show.id) < 0  # never an AniList number
+    assert turtle.id != a_show.id
+    assert anime_list(answer("dragon-ball-z"))[0].anilist_id == 813
 
 
 def test_a_tmdb_show_has_every_episode_in_season_order():

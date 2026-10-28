@@ -1,7 +1,8 @@
 """Working out which anime each video is: grouping files that look like the same anime, scoring
 AniList's entries against them, and picking the same show or film on TMDB. What AniList's search
 can't find by a name, TMDB's may: its shows and films are scored against the files too, and
-AniList's entries for them are guesses no surer than that.
+AniList's entries for them are guesses no surer than that. One AniList doesn't list at all is a
+guess of TMDB's own.
 
 Every guess gets a confidence from 0 to 100 and the reasons for it, in the words the review screen
 shows. Kura accepts a guess on its own only when it's sure; the rest wait for the owner.
@@ -18,7 +19,7 @@ from datetime import date
 from difflib import SequenceMatcher
 from pathlib import PurePath
 
-from kura.core.catalog import Anime, Hit, TitleKind
+from kura.core.catalog import Anime, Hit, TitleKind, tmdb_only
 from kura.core.names import Kind, ParsedName, film_part
 
 SURE = 75  # a guess at least this confident is taken without asking
@@ -225,6 +226,37 @@ def through_tmdb(group: Group, hit: Hit, fit: int, entries: Sequence[Anime]) -> 
         found = merged(found, guesses(replace(group, query=title, series=None), entries))
     capped = [Guess(g.anime, min(g.confidence, fit), (said, *g.reasons)) for g in found]
     return [guess for guess in capped if guess.confidence >= WORTH_SHOWING]
+
+
+def tmdb_alone(
+    group: Group,
+    hit: Hit,
+    fit: int,
+    entries: Sequence[Anime],
+    aliases: Sequence[str] = (),
+) -> list[Guess]:
+    """A show or film TMDB found by a group's name that AniList doesn't list (The Red Turtle, a
+    co-production of Studio Ghibli's), as a guess of its own: scored as AniList's entries are, by
+    every name TMDB knows it by (`aliases` its others), and no surer than it fits the files.
+
+    Only animation, and only when none of AniList's `entries` for TMDB's names is it or goes by
+    its name: AniList's namesake is the one an anime library means. Its episode count and length
+    can't be checked as an entry's are, so without a year that fits it waits for the owner."""
+    known = (hit.title, hit.original_title, *aliases)
+    if not hit.animation or any(
+        pick_hit(entry, [hit]) or name_fit(known, entry.titles, main_part=False) >= _NAMESAKE
+        for entry in entries
+    ):
+        return []
+    entry = tmdb_only(hit.media, hit.id, known, hit.first_aired, hit.poster)
+    scored = _guess(group, entry, rank=1)  # TMDB's own rank is in `fit`
+    dated = group.year is not None and group.year == hit.year
+    ceiling = fit if dated else min(fit, SURE - 1)
+    guess = Guess(entry, min(scored.confidence, ceiling), ("Only TMDB knows it", *scored.reasons))
+    return [guess] if guess.confidence >= WORTH_SHOWING else []
+
+
+_NAMESAKE = 0.9  # an AniList entry whose name is this alike goes by TMDB's find's name
 
 
 def _guess(group: Group, entry: Anime, rank: int, found: Sequence[Anime] = ()) -> Guess:

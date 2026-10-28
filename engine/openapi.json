@@ -1716,7 +1716,7 @@
     "/review/{file_id}/search": {
       "get": {
         "summary": "Search Anilist",
-        "description": "AniList's entries for a name, scored against this file.",
+        "description": "AniList's entries for a name, scored against this file, and with a TMDB key the show or\nfilm TMDB finds by it that AniList doesn't list.",
         "operationId": "search_anilist_review__file_id__search_get",
         "security": [
           {
@@ -4100,8 +4100,41 @@
       "Choice": {
         "properties": {
           "anilistId": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Anilistid"
+          },
+          "tmdbType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tv",
+                  "movie"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdbtype"
+          },
+          "tmdbId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdbid"
           },
           "kind": {
             "type": "string",
@@ -4144,9 +4177,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "anilistId"
-        ],
         "title": "Choice"
       },
       "Chosen-Output": {
@@ -5752,8 +5782,41 @@
       "Guess": {
         "properties": {
           "anilistId": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Anilistid"
+          },
+          "tmdbType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tv",
+                  "movie"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdbtype"
+          },
+          "tmdbId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdbid"
           },
           "title": {
             "type": "string",

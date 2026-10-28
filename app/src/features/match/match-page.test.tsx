@@ -18,6 +18,8 @@ vi.mock("@tauri-apps/api/window", () => ({
 
 const TRIGUN: Guess = {
   anilistId: 6,
+  tmdbType: null,
+  tmdbId: null,
   title: "Trigun",
   kind: "series",
   year: 1998,
@@ -186,6 +188,43 @@ describe("MatchPage", () => {
     await waitFor(() => expect(sent(fetch, "POST", "/review/3")).toHaveLength(1));
     const [[, init]] = sent(fetch, "POST", "/review/3") as [[unknown, RequestInit]];
     expect(JSON.parse(String(init.body))).toEqual({ anilistId: 1, kind: "special", also: [] });
+  });
+
+  it("confirms a film AniList doesn't list by TMDB's number for it", async () => {
+    const turtle: Guess = {
+      ...TRIGUN,
+      anilistId: null,
+      tmdbType: "movie",
+      tmdbId: 337703,
+      title: "The Red Turtle",
+      kind: "movie",
+      year: 2016,
+      confidence: 95,
+      reasons: ["Only TMDB knows it", "Title matches", "2016 fits"],
+    };
+    const film: WaitingFile = {
+      ...waiting(9, 1),
+      path: "F:\\Anime\\Movies\\The Red Turtle (2016)\\The Red Turtle (2016).mp4",
+      minutes: 80.8,
+      episode: null,
+      kind: "movie",
+      guesses: [turtle, TRIGUN],
+    };
+    const fetch = fakeEngine({ "/review": [film], "POST /review/9": { placed: 1 } });
+    renderMatch();
+
+    expect(await screen.findByRole("radio", { name: /The Red Turtle \(2016\)/ })).toBeChecked();
+    expect(screen.getByText(/Only TMDB knows it/)).toBeInTheDocument();
+    (await screen.findByRole("button", { name: "Confirm The Red Turtle" })).click();
+
+    await waitFor(() => expect(sent(fetch, "POST", "/review/9")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "POST", "/review/9") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({
+      tmdbType: "movie",
+      tmdbId: 337703,
+      kind: "movie",
+      also: [],
+    });
   });
 
   it("asks which episode a file is when its name doesn't say", async () => {

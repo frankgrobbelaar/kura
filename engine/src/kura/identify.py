@@ -3,7 +3,8 @@
 The scan's third stage. Files are grouped and looked up on AniList; with the owner's TMDB key the
 same show or film is found on TMDB, whose episode lists say where each file sits and what's
 missing. What AniList's search can't find by a file's name, TMDB's is asked for too, and AniList
-for the names TMDB gives what it finds. A series' special its show's list doesn't name the way
+for the names TMDB gives what it finds; what AniList doesn't list at all is TMDB's alone, a title
+with no AniList entry. A series' special its show's list doesn't name the way
 the file does is looked up by its own name, as an OVA or special of its own. kura/core/identify.py
 and kura/core/placing.py decide, this module asks the services and keeps the answers. A file Kura
 isn't sure about waits for the owner, and files the owner placed by hand (pinned) are never
@@ -24,7 +25,7 @@ from kura import credentials
 from kura.anilist import AniList
 from kura.cache import Cache
 from kura.config import DataPaths
-from kura.core.catalog import Anime, Film, Hit, Show, TitleKind
+from kura.core.catalog import Anime, Film, Hit, Show, TitleKind, TmdbRef, tmdb_only
 from kura.core.identify import (
     SURE,
     FileFacts,
@@ -38,6 +39,7 @@ from kura.core.identify import (
     respelled,
     searches,
     through_tmdb,
+    tmdb_alone,
     tmdb_fit,
 )
 from kura.core.identify import pick_hit as pick_tmdb
@@ -189,8 +191,10 @@ class Identifier:
         """Guesses from what TMDB finds by a group's name, which AniList's search didn't: TMDB
         knows names in more languages and spellings. Each show or film that fits the files well
         enough (by its own names, or else by the other names TMDB knows it by) is asked of AniList
-        by TMDB's names for it, and AniList's entries are guesses no surer than that fit. TMDB
-        being away, or refusing the key, leaves the guesses AniList gave."""
+        by TMDB's names for it, and AniList's entries are guesses no surer than that fit; when
+        none of them is that show or film or goes by its name, AniList doesn't list it, and an
+        animated one is a guess of TMDB's own (core/identify.py's `tmdb_alone`). TMDB being away,
+        or refusing the key, leaves the guesses AniList gave."""
         media: tuple[Literal["tv", "movie"], ...] = ("movie",) if group.movie else ("tv",)
         if all(facts.parsed.kind is Kind.SPECIAL for facts in group.files):
             media = ("tv", "movie")  # TMDB has a special as its show's, or as a film
@@ -204,6 +208,7 @@ class Identifier:
                     return found
                 for rank, hit in enumerate(hits):
                     fit = tmdb_fit(group, hit, rank)
+                    others: list[str] = []
                     if fit < SURE and rank == 0:  # the name may be one of its others
                         try:
                             others = tmdb.alternative_titles(hit.media, hit.id)
@@ -217,7 +222,9 @@ class Identifier:
                     for name in dict.fromkeys((hit.title, hit.original_title)):
                         for entry in self._anilist.search(name):
                             entries.setdefault(entry.id, entry)
-                    found = merged(found, through_tmdb(group, hit, fit, list(entries.values())))
+                    listed = list(entries.values())
+                    found = merged(found, through_tmdb(group, hit, fit, listed))
+                    found = merged(found, tmdb_alone(group, hit, fit, listed, others))
                     if found and found[0].confidence >= SURE:
                         return found
         return found
@@ -226,36 +233,39 @@ class Identifier:
         self,
         conn: sqlite3.Connection,
         file_id: int,
-        anilist_id: int,
+        chosen: int | TmdbRef,
         as_kind: Kind,
         *,
         also: Sequence[int] = (),
         episode: int | None = None,
     ) -> int:
         """The owner's choice: this file, and the others that are the same anime (`also`), are
-        this AniList entry, as episodes, a film, or specials. `episode` is the file's number when
+        this AniList entry (`chosen`, its number) or this show or film only TMDB knows (TMDB's
+        kind and number), as episodes, a film, or specials. `episode` is the file's number when
         its name has none Kura can use. It's pinned, so no rescan undoes it. Returns how many
         files it placed; one of `also` that Kura can't place keeps waiting. A special Kura can't
         number still belongs to its show (an extra, say).
 
         Raises UnplacedError when the file is an episode Kura can't place, LookupError when AniList
-        has no such entry, and WebError when a service can't be asked right now.
+        or TMDB has no such entry (or TMDB has no key), and WebError when a service can't be asked
+        right now.
         """
         ids = [file_id, *(other for other in also if other != file_id)]
-        return self._place(conn, file_id, anilist_id, dict.fromkeys(ids, as_kind), episode).placed
+        return self._place(conn, file_id, chosen, dict.fromkeys(ids, as_kind), episode).placed
 
     def rematch(
         self,
         conn: sqlite3.Connection,
         title_id: int,
         file_id: int,
-        anilist_id: int,
+        chosen: int | TmdbRef,
         as_kind: Kind,
         *,
         episode: int | None = None,
     ) -> Placed:
         """The owner's new match for a whole title, chosen for one of its files (`file_id`, its
-        first episode as kura/review.py shows it): every file of the title is this AniList entry.
+        first episode as kura/review.py shows it): every file of the title is this AniList entry
+        (or TMDB's show or film, as `choose` takes it).
         The files of that file's kind become `as_kind`; the others keep theirs, so a series'
         specials stay specials. A file that doesn't fit the entry waits for the owner.
 
@@ -275,29 +285,26 @@ class Identifier:
         kinds = {file_id: as_kind} | {
             other: kind if other in kept else as_kind for other, kind in now.items()
         }
-        return self._place(conn, file_id, anilist_id, kinds, episode, kept=kept)
+        return self._place(conn, file_id, chosen, kinds, episode, kept=kept)
 
     def _place(
         self,
         conn: sqlite3.Connection,
         file_id: int,
-        anilist_id: int,
+        chosen: int | TmdbRef,
         kinds: dict[int, Kind],
         episode: int | None,
         *,
         kept: Collection[int] = (),
     ) -> Placed:
-        """Places the files (`kinds`, the owner's file first) in an AniList entry, pinned. An
+        """Places the files (`kinds`, the owner's file first) in the entry chosen, pinned. An
         episode Kura can't place keeps waiting, or waits now; so does a file that keeps its own
         kind (`kept`, in a whole title's change) and doesn't fit."""
-        entry = self._anilist.entry(anilist_id)
-        if entry is None:
-            raise LookupError(f"AniList has no entry {anilist_id}.")
-        home = self._title_for(conn, entry, self._tmdb())
+        entry, home = self._chosen(conn, chosen)
         film = home.film or entry.kind is TitleKind.MOVIE or kinds[file_id] is Kind.MOVIE
         files = _facts(conn, list(kinds))
         through: set[int] = set() if film else _numbered_through(conn, files, home)
-        chosen: list[tuple[FileFacts, Placement | None, Kind]] = []
+        placing: list[tuple[FileFacts, Placement | None, Kind]] = []
         unfit: list[int] = []
         for facts in files:
             as_kind = kinds[facts.id]
@@ -314,10 +321,10 @@ class Identifier:
                     raise UnplacedError(_which_episode(entry, parsed.episode))
                 unfit.append(facts.id)
                 continue
-            chosen.append((facts, where, as_kind))
+            placing.append((facts, where, as_kind))
         stamp = self._now().isoformat()
         with conn:
-            for facts, where, as_kind in chosen:
+            for facts, where, as_kind in placing:
                 conn.execute(
                     """UPDATE files SET title_id = ?, anilist_id = ?, season = ?, episode = ?,
                               episode_end = ?, matched = 'sure', confidence = 100,
@@ -325,7 +332,7 @@ class Identifier:
                        WHERE id = ?""",
                     (
                         home.title_id,
-                        entry.id,
+                        entry.anilist_id,
                         where.season if where else (0 if as_kind is Kind.SPECIAL else None),
                         where.episode if where else None,
                         where.last if where else None,
@@ -341,7 +348,34 @@ class Identifier:
                        WHERE id = ? AND matched = 'sure'""",
                     (stamp, unplaced),
                 )
-        return Placed(len(chosen), len(unfit))
+        return Placed(len(placing), len(unfit))
+
+    def _chosen(self, conn: sqlite3.Connection, chosen: int | TmdbRef) -> tuple[Anime, _Home]:
+        """The entry the owner chose, and its title, made or refreshed: an AniList entry by its
+        number, or a show or film only TMDB knows, by TMDB's kind and number. Raises LookupError
+        when there's no such entry, or no TMDB key to look one up with."""
+        tmdb = self._tmdb()
+        if isinstance(chosen, int):
+            entry = self._anilist.entry(chosen)
+            if entry is None:
+                raise LookupError(f"AniList has no entry {chosen}.")
+            return entry, self._title_for(conn, entry, tmdb)
+        if tmdb is None:
+            raise LookupError("TMDB isn't connected: add your key in Settings to choose this.")
+        media, number = chosen
+        if media == "movie":
+            film = tmdb.film(number)
+            if film is None:
+                raise LookupError("TMDB doesn't have that film any more.")
+            names = (film.title, film.original_title)
+            entry = tmdb_only(media, number, names, film.released, film.poster, film.minutes)
+            return entry, _Home(save_film(conn, film, None, self._now()), film=True)
+        show = tmdb.show(number)
+        if show is None:
+            raise LookupError("TMDB doesn't have that show any more.")
+        names = (show.title, show.original_title)
+        entry = tmdb_only(media, number, names, show.first_aired, show.poster)
+        return entry, _Home(save_show(conn, show, TitleKind.SERIES, None, self._now()), show)
 
     def ignore(self, conn: sqlite3.Connection, file_id: int) -> None:
         """The owner says it isn't anime: Kura leaves it out, and no rescan asks again."""
@@ -435,7 +469,11 @@ class Identifier:
             return 0, len(group.files)
 
         entry = best.anime
-        home = self._title_for(conn, entry, tmdb)
+        try:
+            home = self._title_for(conn, entry, tmdb)
+        except LookupError:  # TMDB lost the show or film only it knew, since finding it
+            _mark_unsure(conn, group.files, ranked, stamp)
+            return 0, len(group.files)
         film = home.film or entry.kind is TitleKind.MOVIE  # a file is the whole title
         through: set[int] = set() if film else _numbered_through(conn, group.files, home)
         placements: dict[int, Placement | None] = {}
@@ -526,7 +564,10 @@ class Identifier:
             return None
         if best.anime.kind is not TitleKind.MOVIE and best.anime.episodes != 1:
             return None  # which of its episodes the file is, its name doesn't say
-        home = self._title_for(conn, best.anime, tmdb)
+        try:
+            home = self._title_for(conn, best.anime, tmdb)
+        except LookupError:  # TMDB lost the show or film only it knew, since finding it
+            return None
         if home.film or best.anime.kind is TitleKind.MOVIE:
             return best, home, ranked, None
         where = _placement(parsed, best.anime, home)
@@ -536,7 +577,13 @@ class Identifier:
 
     def _title_for(self, conn: sqlite3.Connection, entry: Anime, tmdb: Tmdb | None) -> _Home:
         """The library's title for an AniList entry, made or refreshed, with its TMDB show.
-        Without a key, an entry whose files already sit in a TMDB title joins them there."""
+        Without a key, an entry whose files already sit in a TMDB title joins them there. A show
+        or film only TMDB knows is a title of TMDB's alone: LookupError when there's no key to
+        ask TMDB with, or TMDB doesn't have it any more."""
+        if entry.tmdb is not None:
+            if tmdb is None:
+                raise LookupError("TMDB isn't connected: add your key in Settings to choose this.")
+            return self._tmdb_title(conn, entry, *entry.tmdb, tmdb)
         save_links(conn, entry)
         if tmdb is None:
             return _known_home(conn, entry) or self._anilist_title(conn, entry)
@@ -549,7 +596,7 @@ class Identifier:
         if hit is None and media == "tv" and entry.kind is not TitleKind.SERIES:
             hit = _find(tmdb, entry, "movie")  # a one-off OVA is often a film on TMDB
         if hit is not None:
-            return self._tmdb_title(conn, entry, hit, tmdb)
+            return self._tmdb_title(conn, entry, hit.media, hit.id, tmdb)
         return self._anilist_title(conn, entry)
 
     def _anilist_title(self, conn: sqlite3.Connection, entry: Anime) -> _Home:
@@ -566,22 +613,44 @@ class Identifier:
             entry = self._anilist.entry(entry.id, fresh=True) or entry
         return _Home(save_anilist_title(conn, entry, self._now()), film=film)
 
-    def _tmdb_title(self, conn: sqlite3.Connection, entry: Anime, hit: Hit, tmdb: Tmdb) -> _Home:
-        row = conn.execute(
-            "SELECT * FROM titles WHERE tmdb_type = ? AND tmdb_id = ?", (hit.media, hit.id)
-        ).fetchone()
-        kind = _kind_for(entry, hit)
-        if hit.media == "movie":
-            film = tmdb.film(hit.id)
+    def _tmdb_title(
+        self,
+        conn: sqlite3.Connection,
+        entry: Anime,
+        media: Literal["tv", "movie"],
+        number: int,
+        tmdb: Tmdb,
+    ) -> _Home:
+        """The TMDB title for an entry, made or refreshed. A title only TMDB knew till now takes
+        the entry's AniList number (the one it was found by is kept)."""
+        if media == "movie":
+            film = tmdb.film(number)
             if film is None:
-                return self._anilist_title(conn, entry)
-            return _Home(_save_film(conn, row, film, entry, self._now()), film=True)
+                return self._without_tmdb(conn, entry)
+            return _Home(save_film(conn, film, entry.anilist_id, self._now()), film=True)
+        row = conn.execute(
+            "SELECT * FROM titles WHERE tmdb_type = 'tv' AND tmdb_id = ?", (number,)
+        ).fetchone()
         if row is not None and not due(row, self._now()):
+            if row["anilist_id"] is None and entry.anilist_id is not None:
+                with conn:
+                    conn.execute(
+                        "UPDATE titles SET anilist_id = ? WHERE id = ?",
+                        (entry.anilist_id, row["id"]),
+                    )
             return _Home(row["id"], show_of(conn, row["id"]))
-        found = tmdb.show(hit.id)
+        found = tmdb.show(number)
         if found is None:
-            return self._anilist_title(conn, entry)
-        return _Home(save_show(conn, found, kind, entry.id, self._now()), found)
+            return self._without_tmdb(conn, entry)
+        kind = _kind_for(entry, media)
+        return _Home(save_show(conn, found, kind, entry.anilist_id, self._now()), found)
+
+    def _without_tmdb(self, conn: sqlite3.Connection, entry: Anime) -> _Home:
+        """The title of an entry whose show or film TMDB doesn't have any more: AniList's own.
+        One only TMDB knew has none: LookupError."""
+        if entry.tmdb is not None:
+            raise LookupError(f"TMDB doesn't have {entry.title} any more.")
+        return self._anilist_title(conn, entry)
 
 
 def save_show(
@@ -673,18 +742,9 @@ def _about(
     )
 
 
-def _save_film(
-    conn: sqlite3.Connection,
-    row: sqlite3.Row | None,
-    film: Film,
-    entry: Anime,
-    now: datetime,
-) -> int:
-    return save_film(conn, film, entry.id if row is None else row["anilist_id"], now)
-
-
 def save_film(conn: sqlite3.Connection, film: Film, anilist_id: int | None, now: datetime) -> int:
-    """Stores a TMDB film, as identifying finds it or a weekly look again brings it up to date."""
+    """Stores a TMDB film, as identifying finds it or a weekly look again brings it up to date.
+    The AniList entry it was found by is kept; one found on TMDB alone takes `anilist_id`."""
     with conn:
         saved = conn.execute(
             f"""INSERT INTO titles (kind, name, year, released, tmdb_type, tmdb_id, anilist_id,
@@ -912,8 +972,8 @@ def _find(tmdb: Tmdb, entry: Anime, media: str) -> Hit | None:
     return None
 
 
-def _kind_for(entry: Anime, hit: Hit) -> TitleKind:
-    if hit.media == "movie":
+def _kind_for(entry: Anime, media: Literal["tv", "movie"]) -> TitleKind:
+    if media == "movie":
         return TitleKind.MOVIE
     if entry.kind is TitleKind.OVA or entry.kind is TitleKind.SPECIAL:
         return entry.kind
@@ -1031,7 +1091,7 @@ def _place(
            WHERE id = ? AND pinned = 0""",
         (
             home.title_id,
-            best.anime.id,
+            best.anime.anilist_id,
             where.season if where else None,
             where.episode if where else None,
             where.last if where else None,
@@ -1067,22 +1127,26 @@ def _mark_unsure(
 
 
 def _guesses_json(ranked: list[Guess]) -> str:
-    return json.dumps(
-        [
-            {
-                "anilistId": guess.anime.id,
-                "title": guess.anime.title,
-                "kind": guess.anime.kind.value if guess.anime.kind else None,
-                "year": guess.anime.year,
-                "episodes": guess.anime.episodes,
-                "minutes": guess.anime.minutes,
-                "cover": guess.anime.cover,
-                "confidence": guess.confidence,
-                "reasons": list(guess.reasons),
-            }
-            for guess in ranked[:_SHOWN_GUESSES]
-        ]
-    )
+    return json.dumps([_saved(guess) for guess in ranked[:_SHOWN_GUESSES]])
+
+
+def _saved(guess: Guess) -> dict[str, object]:
+    """A guess as the review screen shows it (api/review.py's Guess)."""
+    entry = guess.anime
+    media, number = entry.tmdb or (None, None)  # a show or film only TMDB knows
+    return {
+        "anilistId": entry.anilist_id,
+        "tmdbType": media,
+        "tmdbId": number,
+        "title": entry.title,
+        "kind": entry.kind.value if entry.kind else None,
+        "year": entry.year,
+        "episodes": entry.episodes,
+        "minutes": entry.minutes,
+        "cover": entry.cover,
+        "confidence": guess.confidence,
+        "reasons": list(guess.reasons),
+    }
 
 
 def _series_last(ranked: list[Guess]) -> int:

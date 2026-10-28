@@ -12,6 +12,13 @@ shows these notes when it offers the update.
 - The engine is built with the newest versions of the libraries it uses: FastAPI 0.162 and
   Starlette 1.10. The window has Lucide's newest icons, 1.62.
 
+### Fixed
+- An animated film or show AniList doesn't list, such as The Red Turtle (a co-production of
+  Studio Ghibli's), is found on TMDB alone. A scan matches it when its name gives its year, as
+  "The Red Turtle (2016)" does, and otherwise puts it first among the guesses on "Which anime is
+  this?", whose search finds it by any of its names, English, French or Japanese. The files
+  waiting for a match are looked up again by the next scan.
+
 ## 1.4.0 - 2026-10-28
 
 ### Changed

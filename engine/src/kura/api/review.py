@@ -1,6 +1,6 @@
-"""Files waiting for a match: what they are, Kura's best guesses, searching AniList for another,
-and the owner's choice (pinned, so a rescan never undoes it) or "not anime", which can be taken
-back."""
+"""Files waiting for a match: what they are, Kura's best guesses, searching AniList for another
+(and TMDB, for what AniList doesn't list), and the owner's choice (pinned, so a rescan never undoes
+it) or "not anime", which can be taken back."""
 
 from datetime import datetime
 from pathlib import Path
@@ -14,7 +14,7 @@ from kura import review, stills
 from kura.anilist import AniList
 from kura.api.common import AniListClient, ApiModel, Database, Paths, Toolbox, Web
 from kura.config import DataPaths
-from kura.core.catalog import TitleKind
+from kura.core.catalog import TitleKind, TmdbRef
 from kura.core.identify import Guess as FoundGuess
 from kura.core.names import Kind
 from kura.identify import Identifier, Placed, UnplacedError
@@ -24,7 +24,9 @@ router = APIRouter()
 
 
 class Guess(ApiModel):
-    anilist_id: int
+    anilist_id: int | None  # None for a show or film only TMDB knows: AniList doesn't list it
+    tmdb_type: Literal["tv", "movie"] | None = None  # that show or film on TMDB
+    tmdb_id: int | None = None
     title: str
     kind: TitleKind | None
     year: int | None
@@ -60,7 +62,10 @@ class WaitingFile(ApiModel):
 
 
 class Choice(ApiModel):
-    anilist_id: int
+    anilist_id: int | None = None
+    # Or a show or film only TMDB knows, instead of an AniList entry.
+    tmdb_type: Literal["tv", "movie"] | None = None
+    tmdb_id: int | None = None
     kind: Literal["episode", "movie", "special"] = "episode"
     # Other files that are the same anime, numbered from their names.
     also: list[int] = Field(default_factory=list[int])
@@ -112,7 +117,8 @@ def files_to_review(conn: Database, title: int | None = None) -> list[WaitingFil
 def search_anilist(
     file_id: int, q: str, conn: Database, paths: Paths, web: Web, anilist: AniListClient
 ) -> list[Guess]:
-    """AniList's entries for a name, scored against this file."""
+    """AniList's entries for a name, scored against this file, and with a TMDB key the show or
+    film TMDB finds by it that AniList doesn't list."""
     try:
         found = _identifier(paths, web, anilist).search(conn, file_id, q)
     except WebError as error:
@@ -127,17 +133,20 @@ def choose(
     """The owner's choice for this file, and for the others that are the same anime (or, with
     `title`, every file of that title). An episode Kura can't place is 422: the owner gives its
     number."""
+    chosen = _chosen(body)
+    if chosen is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Choose which anime it is.")
     identifier = _identifier(paths, web, anilist)
     try:
         if body.title is not None:
             done = identifier.rematch(
-                conn, body.title, file_id, body.anilist_id, Kind(body.kind), episode=body.episode
+                conn, body.title, file_id, chosen, Kind(body.kind), episode=body.episode
             )
         else:
             placed = identifier.choose(
                 conn,
                 file_id,
-                body.anilist_id,
+                chosen,
                 Kind(body.kind),
                 also=body.also,
                 episode=body.episode,
@@ -202,10 +211,22 @@ def _identifier(paths: DataPaths, web: Send, anilist: AniList) -> Identifier:
     return Identifier(paths, web, now=lambda: datetime.now().astimezone(), anilist=anilist)
 
 
+def _chosen(body: Choice) -> int | TmdbRef | None:
+    """What the owner chose: an AniList entry's number, or a show or film only TMDB knows."""
+    if body.anilist_id is not None:
+        return body.anilist_id
+    if body.tmdb_type is not None and body.tmdb_id is not None:
+        return (body.tmdb_type, body.tmdb_id)
+    return None
+
+
 def _guess(guess: FoundGuess) -> Guess:
     entry = guess.anime
+    media, number = entry.tmdb or (None, None)
     return Guess(
-        anilist_id=entry.id,
+        anilist_id=entry.anilist_id,
+        tmdb_type=media,
+        tmdb_id=number,
         title=entry.title,
         kind=entry.kind,
         year=entry.year,
@@ -220,6 +241,8 @@ def _guess(guess: FoundGuess) -> Guess:
 def _lost(error: LookupError) -> str:
     if str(error).startswith("AniList"):
         return "AniList doesn't have that entry any more."
+    if str(error).startswith("TMDB"):
+        return str(error)
     return "That file isn't one of the title's any more. Look at the title again."
 
 
