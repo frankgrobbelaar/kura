@@ -8,6 +8,15 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+### Fixed
+- A video named with only a mark after its episode ("Dragon Ball Z - 01 - .x") no longer stops
+  the scan for good.
+- An episode the show's list on TMDB doesn't have yet ("S10E05" while it lists nine seasons) waits
+  for you, rather than being counted back into an earlier season, where it looked like a copy of
+  that season's episode and Tidy up offered to set one of them aside.
+- An episode titled "Part 2" after its code ("S01E05 - Part 2") is that episode, not the second
+  part of its season.
+
 ## 1.3.0 - 2026-10-20
 
 ### Fixed

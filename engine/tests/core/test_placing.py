@@ -87,6 +87,22 @@ def test_a_number_past_the_last_episode_isnt_placed():
     assert placed(r"D:\Anime\Dragon Ball Z\Dragon Ball Z - 292.mkv", DBZ) is None
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        # Nine seasons: a tenth's fifth episode, new or not yet on TMDB, isn't the show's fifth.
+        r"D:\Anime\Dragon Ball Z - S10E05.mkv",
+        r"D:\Anime\Dragon Ball Z\Season 10\05.mkv",
+        # Season 4 has 32: a 33rd counted through the show would be season 1's.
+        r"D:\Anime\Dragon Ball Z - S04E33.mkv",
+    ],
+)
+def test_a_number_past_its_season_is_never_counted_back_into_an_earlier_one(path: str):
+    # Placed there, the real episode of that number looks like a copy, and Tidy up would set
+    # one of them aside. It waits for the owner instead.
+    assert placed(path, DBZ) is None
+
+
 def test_a_season_and_episode_are_taken_as_they_are():
     assert placed(r"D:\Anime\Dragon Ball Z - S04E05 - Title.mkv", DBZ) == Placement(
         4, 5, None, How.NUMBERED

@@ -74,8 +74,14 @@ def place(parsed: ParsedName, show: Show, entry: Anime | None = None) -> Placeme
             if last is not None and not number < last <= len(in_season):
                 last = None
             return Placement(season, number, last, How.NUMBERED)
-    # Counted straight through, from the show's first episode.
-    return _from(numbered, number - 1, parsed, How.STRAIGHT)
+    # Counted straight through, from the show's first episode: on into a later season (a pack
+    # with every season in one "Season 1" folder, "S3 - 49" counted on from season 2), never back
+    # into an earlier one. "S10E05" while TMDB lists nine seasons isn't season 1's fifth, whose
+    # file would look like its copy: it waits.
+    found = _from(numbered, number - 1, parsed, How.STRAIGHT)
+    if found is not None and season is not None and found.season < season:
+        return None
+    return found
 
 
 def numbered_through(files: Iterable[FileFacts], show: Show) -> set[int]:

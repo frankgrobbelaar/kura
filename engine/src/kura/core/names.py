@@ -7,6 +7,7 @@ letters and digits read as plain ones.
 Names are hints: matching against the anime databases confirms them.
 """
 
+import importlib
 import re
 import threading
 from dataclasses import dataclass
@@ -163,6 +164,48 @@ def _anitopy(name: str) -> dict[str, str | list[str]]:
 # anitopy keeps its working state in module globals, so only one thread may use it at a time.
 _anitopy_lock = threading.Lock()
 
+# anitopy 2.1.1's search for an episode's own title (Parser.search_for_episode_title) went round
+# forever, holding the lock every other name waits on, on a name whose only words after its
+# episode are a dash and one more mark ("Dragon Ball Z - 01 - .x"): ported from Anitomy, it takes
+# "no token left" for "start again from the first". Kura puts in the same search, ending there as
+# Anitomy's does. anitopy ships no types, hence the import by name. When anitopy moves past
+# 2.1.1, the hang test in tests/core/test_names.py says whether its own search still needs this.
+_anitopy_parser = importlib.import_module("anitopy.parser")
+
+
+def _search_for_episode_title(_parser: object) -> None:
+    tokens, flags = _anitopy_parser.Tokens, _anitopy_parser.TokenFlags
+    helper = _anitopy_parser.parser_helper
+    token_end = None
+    while True:
+        # The first unknown token outside brackets, after the last one tried.
+        if token_end:
+            token_begin = tokens.find_next(token_end, flags.NOT_ENCLOSED | flags.UNKNOWN)
+        else:
+            token_begin = tokens.find(flags.NOT_ENCLOSED | flags.UNKNOWN)
+        if token_begin is None:
+            return
+        # On until a bracket or a word anitopy knows.
+        token_end = tokens.find_next(token_begin, flags.BRACKET | flags.IDENTIFIER)
+        if tokens.distance(token_begin, token_end) <= 2 and helper.is_dash_character(
+            token_begin.content
+        ):
+            if token_end is None:
+                return  # a dash and nothing after it: no title (anitopy's own went round again)
+            continue  # only a dash
+        if token_end and token_end.category == _anitopy_parser.TokenCategory.BRACKET:
+            token_end = tokens.find_previous(token_end, flags.VALID)
+        helper.build_element(
+            _anitopy_parser.ElementCategory.EPISODE_TITLE,
+            token_begin,
+            token_end,
+            keep_delimiters=False,
+        )
+        return
+
+
+_anitopy_parser.Parser.search_for_episode_title = _search_for_episode_title
+
 _DVD_FILE = re.compile(r"^(?:VTS_\d{2}_\d|VIDEO_TS)\.(?:VOB|IFO|BUP)$", re.IGNORECASE)
 _COPY_MARKER = re.compile(
     r"\s*(?:\(copy\)|-\s*copy(?:\s*\(\d+\))?|\((?:[2-9]|[1-9]\d)\))\s*$", re.IGNORECASE
@@ -208,6 +251,8 @@ _DISC = re.compile(r"[\s._-]*\b(?:cd|dis[ck]|dvd)[\s._-]?\d{1,2}$", re.IGNORECAS
 # "S3 Part 2", "Season 3 Part 2": anitopy drops the part, which numbers its episodes from 1 again.
 _PART = re.compile(r"\b(?:s\d{1,2}|season\s*\d{1,2})\s*[-:]?\s*part\s*(\d)\b", re.IGNORECASE)
 _PART_ALONE = re.compile(r"part\s*(\d)", re.IGNORECASE)
+# An episode code: "S01E05", "1x05".
+_EPISODE_CODE = re.compile(r"\bs\d{1,2}e\d{1,4}\b|\b\d{1,2}x\d{2,4}\b", re.IGNORECASE)
 _CODEC_WORDS = re.compile(r"\b(?:x26[45]|h\.?26[45]|hevc|avc|xvid|divx)\b", re.IGNORECASE)
 _EPISODE_WORDS = frozenset({"session", "episode", "ep", "eps"})
 
@@ -537,10 +582,12 @@ def _bracket_year(stem: str) -> int | None:
 
 def _title_and_part(stem: str, episode_title: str | None) -> tuple[str | None, int | None]:
     """The episode title and the part number. anitopy takes "S3 Part 2 - 03" to have the episode
-    title "Part 2"; a real title with "part" in it ("Part of It") is no part."""
-    if episode_title and (alone := _PART_ALONE.fullmatch(episode_title.strip())):
-        return None, int(alone[1])
+    title "Part 2"; a real title with "part" in it ("Part of It") is no part, and nor is "Part 2"
+    after an episode code ("S01E05 - Part 2"), which says where the file goes."""
     before = stem[: stem.find(episode_title)] if episode_title and episode_title in stem else stem
+    alone = episode_title and _PART_ALONE.fullmatch(episode_title.strip())
+    if alone and not _EPISODE_CODE.search(before):
+        return None, int(alone[1])
     found = _PART.search(before)
     return episode_title, int(found[1]) if found else None
 

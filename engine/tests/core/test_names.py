@@ -1,5 +1,7 @@
 """Reading file names. Most examples come straight from the design boards."""
 
+import subprocess
+import sys
 from pathlib import PureWindowsPath
 from typing import Any
 
@@ -139,6 +141,19 @@ def test_a_part_number_is_kept_though_anitopy_drops_it():
     )
     assert parsed(r"D:\Anime\Shingeki no Kyojin S3 - 03.mkv").part is None
     assert parsed(r"D:\Anime\Cowboy Bebop\Cowboy Bebop - Session 05 - Part of It.mkv").part is None
+
+
+def test_an_episode_titled_part_2_after_its_code_is_no_part():
+    # The code says where it goes; "Part 2" after it is the episode's own title, so it and a copy
+    # named "S01E05" alone are the same episode.
+    result = parsed(r"D:\Anime\Dragon Ball Z\Dragon Ball Z - S01E05 - Part 2.mkv")
+
+    assert (result.season, result.part, result.episode, result.episode_title) == (
+        1,
+        None,
+        5,
+        "Part 2",
+    )
 
 
 def test_words_like_session_are_not_part_of_the_title():
@@ -419,6 +434,36 @@ def test_parsing_from_many_threads_at_once_gives_the_same_answers():
         results = list(pool.map(parsed, paths))
 
     assert {(r.title, r.episode) for r in results} == {("DBZ", 1), ("Hunter x Hunter", 148)}
+
+
+def test_a_name_with_only_a_mark_after_its_episode_is_read_without_hanging():
+    # anitopy's own search for an episode's title went round forever on these, holding the
+    # lock every other name waits on. Read in a child, so a hang fails here and never holds up
+    # the rest of the run.
+    paths = [
+        r"D:\Anime\Dragon Ball Z\Dragon Ball Z - 01 - .x.mkv",
+        r"D:\Anime\Dragon Ball Z\Dragon Ball Z - S01E01 - .x.mkv",
+        r"D:\Anime\Dragon Ball Z\Dragon Ball Z - 01 - .2.mkv",
+        r"D:\Anime\Dragon Ball Z\Dragon Ball Z 01 - .x.x.mkv",
+    ]
+    code = (
+        "import sys\n"
+        "from pathlib import PureWindowsPath\n"
+        "from kura.core.names import parse_name\n"
+        "for path in sys.argv[1:]:\n"
+        "    found = parse_name(PureWindowsPath(path))\n"
+        "    print(found.title, found.episode)\n"
+    )
+
+    done = subprocess.run(
+        [sys.executable, "-c", code, *paths],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+
+    assert done.stdout.splitlines() == ["Dragon Ball Z 1"] * len(paths)
 
 
 @pytest.mark.parametrize(

@@ -78,5 +78,12 @@ Kura's rules cover its gaps, and the tests pin the behaviour, so swapping parser
 
 - anitopy keeps its state in module globals, so `parse_name` takes a lock; never call
   `anitopy.parse` directly.
+- anitopy 2.1.1's search for an episode's own title went round forever on a name whose only words
+  after its episode are a dash and one more mark (`Dragon Ball Z - 01 - .x`), holding that lock:
+  Kura puts in its own search, ending there as Anitomy's does (`_search_for_episode_title`). When
+  anitopy moves past 2.1.1, the hang test in `tests/core/test_names.py` says whether it's still
+  needed.
+- `Part 2` as an episode's title is the part of a season it names (`S3 Part 2 - 03`), but not after
+  an episode code (`S01E05 - Part 2`), which says where the file goes.
 - anitopy ships no types; `engine/typings/anitopy/__init__.pyi` declares the one function Kura uses.
 - Add every name that parses wrongly to `engine/tests/core/test_names.py` before fixing it.
