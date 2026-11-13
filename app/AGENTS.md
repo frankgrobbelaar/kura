@@ -23,7 +23,8 @@ and [../CLAUDE.md](../CLAUDE.md).
 - Accessible as built: real `<button>` and `<a>`, labels on icon-only buttons, visible focus, a
   keyboard path for everything, `role="alert"` or `role="status"` for messages that appear.
 - Only the page scrolls. A page starts with its top, its header or a breadcrumb, carrying
-  `page-top`, so it stays put while the rest scrolls under it.
+  `page-top`, so it stays put while the rest scrolls under it. The one exception is the Library's
+  Coming up, a strip that scrolls sideways through the days, as the owner asked.
 - Say what a thing does, never which media server reads it: no "Plex" anywhere in the UI.
 - Markdown (Kura's reports) shows through `components/markdown.tsx`, as a reader sees it.
 - More about one thing, a title the library lacks say, opens in a card over the page
@@ -48,6 +49,14 @@ and [../CLAUDE.md](../CLAUDE.md).
 - Lists of titles group them by type, series, movies, OVAs then specials (`KIND_ORDER` in
   `lib/kinds.ts`), through `components/title-groups.tsx`, except in the orders that look across
   types ("Recently added", "Most missing").
+- Home is the library in numbers, Continue watching and what needs the owner. The anime are the
+  Library's (`features/library/`, right under Home in the nav rail): the shelf, franchises first,
+  its search and order kept in its address (`?q=`, `?sort=`, so Home's "Most missing first" opens
+  `/library?sort=missing`), and Coming up first under the series' heading (a group's `lead`), or
+  at the top in an order that looks across types. Coming up opens at today, the last four weeks
+  to its left and all that's listed ahead to its right, each show's day saying whether the
+  library has it. A title's and a franchise's pages, and what's asked of one of them, sit in the
+  Library (`LIBRARY` in `components/breadcrumb.tsx`, and `sectionOf`).
 - A list that grows long has a search (`components/search-field.tsx`), shown once there's more
   than one thing in it: it narrows the list as you type, wanting every word however it's written
   (`lib/search.ts`), keeps to the page's address (`?q=`) so going back finds it, and says when
@@ -86,7 +95,7 @@ and [../CLAUDE.md](../CLAUDE.md).
 
 | What | Where |
 | --- | --- |
-| A screen and its parts | `src/features/<area>/` (`home/`, then `tidy/`, `convert/`, …) |
+| A screen and its parts | `src/features/<area>/` (`home/`, `library/`, then `tidy/`, `convert/`, …) |
 | Shared primitives (buttons, switches, dialogs…) | `src/components/ui/` |
 | The window frame (title bar, nav rail, update card, the notes at its foot) | `src/components/shell/` |
 | Talking to the engine and the shell | `src/lib/engine.tsx`, `src/lib/updates.ts` |

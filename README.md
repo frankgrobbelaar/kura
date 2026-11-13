@@ -42,8 +42,11 @@ isn't sure of waits for you on "Which anime is this?", with stills and a quick l
 
 Every title gets a page: what it's about, its seasons, an episode map, the episodes that aired
 that you don't have, and a gap report beside the files. A franchise's page even shows the films
-and OVAs you have none of, each in its place, and keeps watching for new ones. Home lists the
-episodes still to come of the shows you have, by the day they air.
+and OVAs you have none of, each in its place, and keeps watching for new ones. The Library lays
+the episodes of your shows along the days they air: the last four weeks, so you see what you've
+missed, and all that's still to come, each saying whether you have it.
+
+![The Library: your series, with the days their episodes air along the top](docs/readme/library.png)
 
 ![A franchise's page, the titles you're missing as dotted placeholders](docs/readme/franchise.png)
 

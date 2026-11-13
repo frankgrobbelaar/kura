@@ -34,4 +34,8 @@ export function Breadcrumb({
   );
 }
 
-export const LIBRARY = { label: "Library", to: "/" };
+/** Where a title's or a franchise's page sits, and what's asked of one of them: the Library. */
+export const LIBRARY = { label: "Library", to: "/library" };
+
+/** Where a page opened from Home sits: making subtitles for the whole library. */
+export const HOME = { label: "Home", to: "/" };

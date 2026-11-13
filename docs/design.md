@@ -31,7 +31,8 @@ progress. And no struggling with small things: every error, empty state and reco
 6. **Fits every window size.** Compact under 900 px, standard 900 to 1440, wide above. Layouts
    reflow on their own: the nav rail folds into a row on top, panels stack, grids change columns.
    Only the page scrolls: the nav rail and the page's top (`page-top`: its title or breadcrumb)
-   stay where they are.
+   stay where they are. The one exception is the Library's Coming up, a strip that scrolls
+   sideways through the days, as the owner asked.
 7. **Light and dark, designed together.** Dark is Cinema; light is Paper: a warm paper ground,
    cream panels that lift with a soft shadow, ink text, the same amber. Kura is light or dark as
    Windows is, unless the owner picks one in Settings › General. Body text keeps 4.5:1 contrast in

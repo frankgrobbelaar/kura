@@ -62,7 +62,8 @@ airs or is still to come (and daily, too, while AniList gives nothing for it), a
 new one turns up: AniList links Dragon Ball Super: Beerus from Dragon Ball Z and Super, so the
 next look at either finds it. A franchise is followed 200 entries out at most, and never into
 another franchise the library has (through a crossover AniList ties to both). What's looked up
-this way never changes which titles make a franchise on Home: only the links of the library's
+this way never changes which titles make a franchise in the Library: only the links of the
+library's
 own entries do. Music videos, cancelled entries and ones without a format yet aren't listed.
 
 Answers are kept a week in the data folder's `cache/`, so a rescan asks nothing again. A show

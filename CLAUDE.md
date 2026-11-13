@@ -181,6 +181,13 @@ Everything decided so far. Don't ask again; change only with the owner.
   the data folder, the database, TMDB, updates) is in Settings › About. Its videos by picture
   are a summary at the top, and Scan again and Add a folder sit by the page's title with when
   the latest scan ran and what it found new or gone (the owner, 2026-10-13).
+- **Home and the Library** (the owner, 2026-11-13, for Kura as for Maku: "lets see if we can do
+  the same changes to Kura"): Home, titled "Home", keeps the library in numbers, Continue
+  watching and what needs the owner. The **Library**, the nav rail's second place, is the shelf
+  of franchises and series (its search and order kept in its address, so Home's "Most missing
+  first" opens it in that order), with **Coming up** under the series' heading (at the top in an
+  order that looks across types). Titles and franchises sit in the Library; the scan and
+  subtitles for the whole library sit in Home.
 - Picture: crisp and clean; 720p or 1080p are both fine. **Every** file goes to the library standard,
   even 720p to 720p; a file already exactly at the standard is only renamed.
 - The standard is chosen on Convert as in Settings, the estimates following at once (the owner,
@@ -200,7 +207,7 @@ Everything decided so far. Don't ask again; change only with the owner.
 - Only the page scrolls (the owner, 2026-10-11): the nav rail and the page's top (its title, or
   its breadcrumb) stay where they are, and so does a page's own section list beside it. A list
   that can run long inside a panel, as the queue's failed files, keeps to a height and scrolls in
-  its place (the owner, 2026-10-14).
+  its place (the owner, 2026-10-14); the Library's Coming up scrolls sideways through the days.
 - The nav rail's tiles carry badges, as the boards show (the owner, 2026-10-13: "the little
   orange count badge is not showing over the convert side icon"): Convert, tinted, how far the
   file converting now has got, or how many files wait; Tidy up, solid amber, how many changes
@@ -232,7 +239,8 @@ Everything decided so far. Don't ask again; change only with the owner.
 - Lists sort by release date by default, oldest first, on every page that lists series, movies,
   OVAs or specials, and can sort by name and other orders (the owner, 2026-10-11). They're
   grouped by type (the owner, 2026-10-13: "we need to order by type"): series first, then
-  movies, OVAs and specials, each group in the order chosen; Home's shelf puts franchises first.
+  movies, OVAs and specials, each group in the order chosen; the Library's shelf puts franchises
+  first.
   "Recently added" and "Most missing" list every type together.
 - A franchise's page shows what the library is missing of the whole franchise (the owner,
   2026-10-13): "Missing titles", beside the sort after a divider, puts in among its titles the
@@ -245,7 +253,8 @@ Everything decided so far. Don't ask again; change only with the owner.
   library included. Kura looks franchises up in the background, a few entries at a time,
   what the library lacks first, and asks about each again weekly, daily while it airs or is
   still to come, so a new one ("now there is a new Dragon Ball Super: Beerus out") appears by
-  itself. Which titles make a franchise on Home doesn't change with what's looked up: only the
+  itself. Which titles make a franchise in the Library doesn't change with what's looked up:
+  only the
   links of entries the library holds tie titles together, as before.
 - Everything says what it is (the owner, 2026-10-11): TV series, movie, OVA or special, as a word
   on its card, title page, review and report (status keeps the shapes), with counts by kind
@@ -311,7 +320,8 @@ Everything decided so far. Don't ask again; change only with the owner.
   search will be useful"): the title bar's search, as the boards draw it (without Ctrl K), finds
   the library's anime by any name they go by, their episodes by code or name and its videos by
   their files' names, and opens one on its page; an episode or video opens its title's videos
-  searched for it. Every list that grows long has its own: Home's shelf, a franchise's titles, a
+  searched for it. Every list that grows long has its own: the Library's shelf, a franchise's
+  titles, a
   title's videos through every season, Convert's What, the queue's Up next, Tidy up's changes,
   and History's filter by anime or file (the board's). Each narrows as you type, every word
   wanted however a name is written, and what it hides isn't acted on.
@@ -338,10 +348,13 @@ Everything decided so far. Don't ask again; change only with the owner.
     title part way through, latest first: the video stopped, or the next not yet watched, in the
     order a title's page plays them; a quick look leaves it as it was; "Remove from Continue
     watching" leaves a title out till it plays again.
-  - Home's "Coming up": each of the library's shows with an episode still to come that it hasn't
-    got, its next one by the day it airs, from the episode lists Kura keeps. On the day one airs
-    the owner is told once (one notification for the day's). It never searches for or fetches an
-    episode: what to do about one is the owner's own business.
+  - The Library's "Coming up" (Home's till 2026-11-13): the library's shows by the day their
+    episodes air, from the episode lists Kura keeps, along a strip that scrolls sideways and opens
+    at today: the last four weeks to its left and all that's listed ahead to its right (each
+    show's next however far off), a show's episodes on a day one card saying whether they're in
+    the library, missing or still to air (a season put out at once is one card, "5 of 8 in your
+    library"). On the day one airs the owner is told once (one notification for the day's). It
+    never searches for or fetches an episode: what to do about one is the owner's own business.
   - The health check: from 23:00 to 07:00, while the queue has no job, a few at a time, every
     video is played a few seconds at three points, and again a month on. It played when its
     pictures came (counted with ffmpeg's `-progress`), as an original can print decoder noise

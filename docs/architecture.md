@@ -168,7 +168,8 @@ OVA or special goes into its show's season 0 when the library has the show and T
 the show's specials on the day it first aired, or by its own name ("Special 06 - The History of
 Trunks"); otherwise it's a title of its own. Titles AniList ties together by story (sequels,
 prequels, alternative versions, films, side stories) make a franchise (`kura/core/franchise.py`):
-Home shows each franchise as one card with a page of its own (an entry matched before Kura kept
+the Library shows each franchise as one card with a page of its own (an entry matched before
+Kura kept
 these links is asked about at the next scan). The rest of each franchise, the entries AniList
 ties to the library's by story whether the library has them or not, is looked up in the
 background (`kura/franchises.py`, at most 200 entries a franchise) and kept in
@@ -176,7 +177,8 @@ background (`kura/franchises.py`, at most 200 entries a franchise) and kept in
 none sits where it would in a show the library has (a later part TMDB keeps as the show's next
 season, by its first day, or a special among the show's specials, by its names or else its
 day). Only the links of entries the library holds tie its titles into franchises, so what's
-looked up beyond them never joins two cards on Home. A file Kura isn't sure about waits for the owner,
+looked up beyond them never joins two cards in the Library. A file Kura isn't sure about waits
+for the owner,
 whose choice is pinned (an episode Kura can't place asks for its number), or who sets it aside as
 not anime, pinned too; the files set aside are listed, and one taken back waits again, looked up
 afresh at the next scan (`Identifier.unignore`). Offline, identification waits for the next scan and
@@ -373,10 +375,15 @@ latest video that counts (stopped part way, or watched): stopped part way, it's 
 watched, the next one not watched yet is up next, in the order a title's page plays them. A
 title can be left out of it (`DELETE /continue/{id}`) till one of its videos plays again.
 
-Home's "Coming up" (`kura/coming.py`, `GET /coming`) is each title's next episode airing today
-or later that no video of the library's covers, from the episode lists Kura keeps (asked for
-hourly while a show airs). On the day one airs, the watcher tells the owner as it looks around
-(`Watcher.tell_aired`, one notification for the day's), and `aired_told` keeps each told once.
+The Library's "Coming up" (`kura/coming.py`, `GET /coming`) is the library's shows by the day
+their episodes air, from the episode lists Kura keeps (asked for hourly while a show airs): the
+last four weeks, and all that's listed from today on (the soonest hundred, the last day of them
+whole, and each show's next however far off). A show's episodes of one season out one after
+another on one day are one, a season put out at once among them, saying how many of them a video
+of the library's holds; the window asks again after every scan, match and tidy-up. On the day
+one airs that the library hasn't got, the watcher tells the owner as it looks around
+(`Watcher.tell_aired`, one notification for the day's, leading to its title or, for several, to
+the Library), and `aired_told` keeps each told once.
 
 The health check (`kura/checkup.py`, run by `kura/care.py`) test-plays each video at night while
 the queue has no job: a few seconds at three points, its picture decoded as a player would from
