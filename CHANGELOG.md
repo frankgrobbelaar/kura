@@ -8,6 +8,8 @@ shows these notes when it offers the update.
 
 ## Unreleased
 
+## 1.6.0 - 2026-11-13
+
 ### Added
 - A Library, right under Home on the left, holds your anime. Its search and its order are still
   there when you come back to it.
