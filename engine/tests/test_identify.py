@@ -621,6 +621,99 @@ def test_the_owner_says_which_episode_when_its_name_doesnt(
     assert placed(conn)["VTS_01_1.VOB"] == ("sure", "Dragon Ball Z", "series", 5, 11)
 
 
+def _waiting(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path, names: list[str], *, tmdb: bool = True
+) -> tuple[Identifier, dict[str, int]]:
+    """These files in Downloads, waiting for the owner, and the owner to choose for them."""
+    if tmdb:
+        credentials.save(paths, "tmdb", "a-test-key")
+    library(conn, root, [f"Downloads/{name}" for name in names])
+    identify(paths, conn, internet(tmdb=tmdb))
+    ids = {Path(row["path"]).name: row["id"] for row in conn.execute("SELECT id, path FROM files")}
+    assert all(placed(conn)[name][0] != "sure" for name in names)
+    return Identifier(paths, internet(tmdb=tmdb), now=lambda: NOW), ids
+
+
+def test_the_owner_says_which_season_an_episode_is_in(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    names = ["[subs] ep08 final.mkv", "[subs] ep09 final.mkv", "[subs] S02E05 final.mkv"]
+    owner, ids = _waiting(paths, conn, root, names)
+
+    count = owner.choose(
+        conn,
+        ids["[subs] ep08 final.mkv"],
+        813,
+        Kind.EPISODE,
+        also=[ids["[subs] ep09 final.mkv"], ids["[subs] S02E05 final.mkv"]],
+        season=3,
+    )
+
+    assert count == 3
+    found = placed(conn)
+    assert found["[subs] ep08 final.mkv"] == ("sure", "Dragon Ball Z", "series", 3, 8)
+    # Its look-alike says no season either: it's in the same one. The other says its own.
+    assert found["[subs] ep09 final.mkv"] == ("sure", "Dragon Ball Z", "series", 3, 9)
+    assert found["[subs] S02E05 final.mkv"] == ("sure", "Dragon Ball Z", "series", 2, 5)
+
+
+def test_the_owners_season_counts_whatever_the_entrys_first_day_says(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    owner, ids = _waiting(paths, conn, root, ["[subs] ep08 final.mkv"])
+    file_id = ids["[subs] ep08 final.mkv"]
+    third = 100166  # My Hero Academia Season 3 on AniList
+
+    owner.choose(conn, file_id, third, Kind.EPISODE)
+    # Counted from the entry's first day, which TMDB's list here (a week an episode) has in
+    # season 5.
+    assert placed(conn)["[subs] ep08 final.mkv"][3:] == (5, 25)
+
+    owner.choose(conn, file_id, third, Kind.EPISODE, season=3)
+    assert placed(conn)["[subs] ep08 final.mkv"] == ("sure", "My Hero Academia", "series", 3, 8)
+
+
+def test_a_season_or_episode_the_show_doesnt_have_is_asked_about(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    owner, ids = _waiting(paths, conn, root, ["[subs] ep08 final.mkv"])
+    file_id = ids["[subs] ep08 final.mkv"]
+
+    with pytest.raises(UnplacedError) as no_season:
+        owner.choose(conn, file_id, 813, Kind.EPISODE, season=10)
+    with pytest.raises(UnplacedError) as no_episode:
+        owner.choose(conn, file_id, 813, Kind.EPISODE, episode=40, season=3)
+
+    assert str(no_season.value) == "Which season is it? Dragon Ball Z has seasons 1 to 9."
+    assert (
+        str(no_episode.value) == "Which episode is it? Season 3 of Dragon Ball Z has 33 episodes."
+    )
+    assert placed(conn)["[subs] ep08 final.mkv"][0] != "sure"  # it still waits
+
+
+def test_without_tmdb_each_season_is_an_anime_of_its_own(
+    paths: DataPaths, conn: sqlite3.Connection, root: Path
+):
+    owner, ids = _waiting(paths, conn, root, ["[subs] ep08 final.mkv"], tmdb=False)
+    file_id = ids["[subs] ep08 final.mkv"]
+
+    with pytest.raises(UnplacedError) as first_season:
+        owner.choose(conn, file_id, 21459, Kind.EPISODE, season=3)  # My Hero Academia
+    owner.choose(conn, file_id, 100166, Kind.EPISODE, season=3)  # its Season 3
+
+    assert str(first_season.value) == (
+        "Which season is it? Kura knows My Hero Academia from AniList alone, where each season is"
+        " an anime of its own: search for its season 3 and choose that."
+    )
+    assert placed(conn)["[subs] ep08 final.mkv"] == (
+        "sure",
+        "My Hero Academia Season 3",
+        "series",
+        1,
+        8,
+    )
+
+
 def test_look_alikes_kura_cant_place_keep_waiting(
     paths: DataPaths, conn: sqlite3.Connection, root: Path
 ):

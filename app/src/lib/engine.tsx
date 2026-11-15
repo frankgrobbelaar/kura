@@ -1209,9 +1209,29 @@ export interface Chosen {
   titleId: number | null;
 }
 
+/** What the owner chose for a file waiting for a match: the body `useChooseMatch` sends. */
+export interface Choice {
+  /** The AniList entry; or `tmdbType` and `tmdbId` for a show or film only TMDB knows. */
+  anilistId?: number;
+  tmdbType?: "tv" | "movie" | null;
+  tmdbId?: number | null;
+  kind: "episode" | "movie" | "special";
+  /** Other files that are the same anime, numbered from their names. */
+  also?: number[];
+  /** The title whose match changes, all its files at once (instead of `also`). */
+  title?: number;
+  /** The file's number, when the owner gives one its name doesn't. */
+  episode?: number;
+  /**
+   * The season the owner says it's in, 1 or more: it goes there among the title's seasons, and so
+   * do the files of `also` whose names say no season.
+   */
+  season?: number;
+}
+
 /**
- * The owner's choice: `choose.mutate({ path: "/review/7", body: { anilistId, kind, also, episode } })`,
- * with `tmdbType` and `tmdbId` instead of `anilistId` for a show or film only TMDB knows, or with
+ * The owner's choice: `choose.mutate({ path: "/review/7", body: choice })` (a `Choice`), with
+ * `tmdbType` and `tmdbId` instead of `anilistId` for a show or film only TMDB knows, or with
  * `title` instead of `also`, a whole title's new match (each file keeps its kind).
  */
 export const useChooseMatch = () =>

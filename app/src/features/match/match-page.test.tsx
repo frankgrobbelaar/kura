@@ -167,7 +167,7 @@ describe("MatchPage", () => {
     const fetch = fakeEngine({ "/review": QUEUE, "POST /review/3": { placed: 3 } });
     renderMatch();
 
-    (await screen.findByRole("button", { name: "Confirm Trigun, episode 3" })).click();
+    (await screen.findByRole("button", { name: "Confirm episode 3 of Trigun" })).click();
 
     await waitFor(() => expect(sent(fetch, "POST", "/review/3")).toHaveLength(1));
     const [[, init]] = sent(fetch, "POST", "/review/3") as [[unknown, RequestInit]];
@@ -237,10 +237,12 @@ describe("MatchPage", () => {
     const fetch = fakeEngine({ "/review": [dvd], "POST /review/7": { placed: 1 } });
     renderMatch();
 
-    const number = await screen.findByRole("textbox", { name: "Which episode" });
+    const number = await screen.findByRole("textbox", { name: "Episode" });
+    expect(screen.getByRole("group", { name: "Which episode" })).toContainElement(number);
+    expect(screen.getByRole("textbox", { name: "Season" })).toHaveValue("");
     expect(screen.getByRole("button", { name: "Confirm Trigun" })).toBeInTheDocument();
     fireEvent.change(number, { target: { value: "15x0" } });
-    (await screen.findByRole("button", { name: "Confirm Trigun, episode 150" })).click();
+    (await screen.findByRole("button", { name: "Confirm episode 150 of Trigun" })).click();
 
     await waitFor(() => expect(sent(fetch, "POST", "/review/7")).toHaveLength(1));
     const [[, init]] = sent(fetch, "POST", "/review/7") as [[unknown, RequestInit]];
@@ -250,6 +252,77 @@ describe("MatchPage", () => {
       also: [],
       episode: 150,
     });
+  });
+
+  it("starts from the season and episode the name gives, and sends them once changed", async () => {
+    const third: WaitingFile = {
+      ...waiting(8, 8),
+      path: "D:\\Anime\\Downloads\\Trigun - S03E08.mkv",
+      season: 3,
+    };
+    const fetch = fakeEngine({ "/review": [third], "POST /review/8": { placed: 1 } });
+    renderMatch();
+
+    const season = await screen.findByRole("textbox", { name: "Season" });
+    expect(season).toHaveValue("3");
+    expect(screen.getByRole("textbox", { name: "Episode" })).toHaveValue("8");
+    expect(screen.getByRole("radio", { name: /Trigun \(1998\)/ })).toHaveTextContent("S03E08 · ");
+    expect(screen.getByRole("button", { name: "Confirm S03E08 of Trigun" })).toBeInTheDocument();
+    fireEvent.change(season, { target: { value: "2" } });
+    (await screen.findByRole("button", { name: "Confirm S02E08 of Trigun" })).click();
+
+    await waitFor(() => expect(sent(fetch, "POST", "/review/8")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "POST", "/review/8") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({
+      anilistId: 6,
+      kind: "episode",
+      also: [],
+      season: 2,
+    });
+  });
+
+  it("leaves the season to the name while the owner changes nothing", async () => {
+    const third: WaitingFile = { ...waiting(8, 8), season: 3 };
+    const fetch = fakeEngine({ "/review": [third], "POST /review/8": { placed: 1 } });
+    renderMatch();
+
+    (await screen.findByRole("button", { name: "Confirm S03E08 of Trigun" })).click();
+
+    await waitFor(() => expect(sent(fetch, "POST", "/review/8")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "POST", "/review/8") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({ anilistId: 6, kind: "episode", also: [] });
+  });
+
+  it("puts the files like it in the season given when their names say none", async () => {
+    const fetch = fakeEngine({ "/review": QUEUE, "POST /review/3": { placed: 3 } });
+    renderMatch();
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Season" }), {
+      target: { value: "2" },
+    });
+
+    expect(await screen.findByText("S02E04 and S02E05, numbered from their names")).toBeVisible();
+    screen.getByRole("button", { name: "Confirm S02E03 of Trigun" }).click();
+    await waitFor(() => expect(sent(fetch, "POST", "/review/3")).toHaveLength(1));
+    const [[, init]] = sent(fetch, "POST", "/review/3") as [[unknown, RequestInit]];
+    expect(JSON.parse(String(init.body))).toEqual({
+      anilistId: 6,
+      kind: "episode",
+      also: [4, 5],
+      season: 2,
+    });
+  });
+
+  it("shortens a long title in the button after the episode, never widening the page", async () => {
+    const title =
+      "The Rather Long Adventures of the Wandering Gunman Across the Endless Sand Sea: Director's Cut";
+    fakeEngine({ "/review": [{ ...waiting(3, 3), guesses: [{ ...TRIGUN, title }] }] });
+    renderMatch();
+
+    const button = await screen.findByRole("button", { name: `Confirm episode 3 of ${title}` });
+
+    expect(button).toHaveClass("max-w-full", "min-w-0");
+    expect(within(button).getByText(`Confirm episode 3 of ${title}`)).toHaveClass("truncate");
   });
 
   it("searches when none of the guesses is right", async () => {
@@ -329,7 +402,7 @@ describe("MatchPage", () => {
       true,
     );
     fireEvent.keyDown(window, { key: "2" });
-    (await screen.findByRole("button", { name: "Confirm Trigun, episode 1" })).click();
+    (await screen.findByRole("button", { name: "Confirm episode 1 of Trigun" })).click();
 
     expect(await screen.findByText("Title 8, 1 waiting")).toBeInTheDocument();
     const [[, init]] = sent(fetch, "POST", "/review/3") as [[unknown, RequestInit]];

@@ -13,6 +13,7 @@ from kura.core.names import parse_name
 from kura.core.placing import (
     How,
     Placement,
+    in_season,
     lists_special,
     named_special,
     numbered_through,
@@ -354,3 +355,33 @@ def test_a_name_that_says_its_season_goes_by_it():
     files = heroes(2, *range(14, 26), named="S02E{n:02}")
 
     assert numbered_through(files, HEROES) == set()
+
+
+def given(path: str, season: int) -> Placement | None:
+    """Where a file goes in Dragon Ball Z when the owner says which season it is."""
+    return in_season(parse_name(PureWindowsPath(path)), DBZ, season)
+
+
+def test_the_season_the_owner_gives_holds_the_episode_by_its_number():
+    assert given(r"D:\Anime\Downloads\[subs] ep08 final.mkv", 3) == Placement(
+        3, 8, None, How.NUMBERED
+    )
+    # Whatever season its name gave: the owner's word is the one that counts.
+    assert given(r"D:\Anime\Dragon Ball Z - S01E08.mkv", 3) == Placement(3, 8, None, How.NUMBERED)
+
+
+def test_a_number_counted_through_the_show_goes_where_it_lands_in_the_season_given():
+    # Seasons 1 and 2 hold 39 and 35: the show's 80th episode is season 3's sixth.
+    assert given(r"D:\Anime\Dragon Ball Z - 080.mkv", 3) == Placement(3, 6, None, How.STRAIGHT)
+
+
+def test_an_episode_the_season_given_doesnt_hold_isnt_placed():
+    assert given(r"D:\Anime\Dragon Ball Z - 040.mkv", 3) is None  # the 40th is season 2's first
+    assert given(r"D:\Anime\Dragon Ball Z - 05.mkv", 10) is None  # nine seasons
+    assert given(r"D:\Anime\Old DVDs\VTS_01_1.VOB", 3) is None  # no number at all
+
+
+def test_two_episodes_in_one_file_stay_in_the_season_given():
+    assert given(r"D:\Anime\Dragon Ball Z - 08-09.mkv", 3) == Placement(3, 8, 9, How.NUMBERED)
+    # Season 3 holds 33 episodes: the second isn't in it.
+    assert given(r"D:\Anime\Dragon Ball Z - 33-34.mkv", 3) == Placement(3, 33, None, How.NUMBERED)

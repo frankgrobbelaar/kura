@@ -133,6 +133,44 @@ def test_a_choice_kura_cant_place_asks_which_episode(
     assert tuple(row) == (5, 11, 1)
 
 
+def test_the_owner_gives_the_season_with_the_episode(
+    client: TestClient, waiting: FakeWeb, paths: DataPaths, conn: sqlite3.Connection
+):
+    credentials.save(paths, "tmdb", "a-test-key")
+    [first, *_] = client.get("/review").json()
+    choice = {"anilistId": 813, "kind": "episode", "episode": 8}
+
+    unsure = client.post(f"/review/{first['id']}", json={**choice, "season": 0})
+    answer = client.post(f"/review/{first['id']}", json={**choice, "season": 3})
+
+    assert unsure.status_code == 422  # season 0 holds the specials: a special says so
+    assert answer.json()["placed"] == 1
+    row = conn.execute("SELECT season, episode FROM files WHERE id = ?", (first["id"],)).fetchone()
+    assert tuple(row) == (3, 8)
+
+
+def test_a_titles_new_match_takes_the_season_given_for_the_file_shown_alone(
+    client: TestClient, paths: DataPaths, conn: sqlite3.Connection, root: Path, web: FakeWeb
+):
+    credentials.save(paths, "tmdb", "a-test-key")
+    library(conn, root, [f"Cowboy Bebop/Cowboy Bebop - 0{n}.mkv" for n in (1, 2)])
+    identify(paths, conn, internet())
+    web.answers.update(internet().answers)
+    [bebop] = [row[0] for row in conn.execute("SELECT id FROM titles")]
+    [first] = client.get("/review", params={"title": bebop}).json()
+
+    client.post(
+        f"/review/{first['id']}",
+        json={"anilistId": 813, "kind": "episode", "title": bebop, "season": 3, "episode": 1},
+    )
+
+    rows = conn.execute("SELECT path, season, episode FROM files ORDER BY path")
+    assert [(Path(row[0]).name, row[1], row[2]) for row in rows] == [
+        ("Cowboy Bebop - 01.mkv", 3, 1),
+        ("Cowboy Bebop - 02.mkv", 1, 2),  # the rest of the title by their names, as before
+    ]
+
+
 def test_a_titles_match_changes_for_all_its_files_at_once(
     client: TestClient, paths: DataPaths, conn: sqlite3.Connection, root: Path, web: FakeWeb
 ):

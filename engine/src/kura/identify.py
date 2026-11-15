@@ -47,6 +47,7 @@ from kura.core.names import Kind, ParsedName, parse_name
 from kura.core.placing import (
     How,
     Placement,
+    in_season,
     lists_special,
     named_special,
     numbered_through,
@@ -238,20 +239,24 @@ class Identifier:
         *,
         also: Sequence[int] = (),
         episode: int | None = None,
+        season: int | None = None,
     ) -> int:
         """The owner's choice: this file, and the others that are the same anime (`also`), are
         this AniList entry (`chosen`, its number) or this show or film only TMDB knows (TMDB's
         kind and number), as episodes, a film, or specials. `episode` is the file's number when
-        its name has none Kura can use. It's pinned, so no rescan undoes it. Returns how many
-        files it placed; one of `also` that Kura can't place keeps waiting. A special Kura can't
-        number still belongs to its show (an extra, say).
+        its name has none Kura can use, and `season` the season the owner says it's in: then the
+        file goes there, among the title's seasons (`_in_season`), and so do those of `also` whose
+        names say no season of their own, each by its own number. It's pinned, so no rescan undoes
+        it. Returns how many files it placed; one of `also` that Kura can't place keeps waiting. A
+        special Kura can't number still belongs to its show (an extra, say).
 
         Raises UnplacedError when the file is an episode Kura can't place, LookupError when AniList
         or TMDB has no such entry (or TMDB has no key), and WebError when a service can't be asked
         right now.
         """
         ids = [file_id, *(other for other in also if other != file_id)]
-        return self._place(conn, file_id, chosen, dict.fromkeys(ids, as_kind), episode).placed
+        kinds = dict.fromkeys(ids, as_kind)
+        return self._place(conn, file_id, chosen, kinds, episode, season, alike=True).placed
 
     def rematch(
         self,
@@ -262,12 +267,14 @@ class Identifier:
         as_kind: Kind,
         *,
         episode: int | None = None,
+        season: int | None = None,
     ) -> Placed:
         """The owner's new match for a whole title, chosen for one of its files (`file_id`, its
         first episode as kura/review.py shows it): every file of the title is this AniList entry
         (or TMDB's show or film, as `choose` takes it).
         The files of that file's kind become `as_kind`; the others keep theirs, so a series'
-        specials stay specials. A file that doesn't fit the entry waits for the owner.
+        specials stay specials. A file that doesn't fit the entry waits for the owner. `episode`
+        and `season` are that one file's, as `choose` takes them: the others go by their names.
 
         Raises LookupError when the file isn't the title's, and otherwise as `choose` does.
         """
@@ -285,7 +292,7 @@ class Identifier:
         kinds = {file_id: as_kind} | {
             other: kind if other in kept else as_kind for other, kind in now.items()
         }
-        return self._place(conn, file_id, chosen, kinds, episode, kept=kept)
+        return self._place(conn, file_id, chosen, kinds, episode, season, kept=kept)
 
     def _place(
         self,
@@ -294,12 +301,15 @@ class Identifier:
         chosen: int | TmdbRef,
         kinds: dict[int, Kind],
         episode: int | None,
+        season: int | None,
         *,
         kept: Collection[int] = (),
+        alike: bool = False,
     ) -> Placed:
         """Places the files (`kinds`, the owner's file first) in the entry chosen, pinned. An
         episode Kura can't place keeps waiting, or waits now; so does a file that keeps its own
-        kind (`kept`, in a whole title's change) and doesn't fit."""
+        kind (`kept`, in a whole title's change) and doesn't fit. The season the owner gives goes
+        for their file, and with `alike` for the others whose names say none of their own."""
         entry, home = self._chosen(conn, chosen)
         film = home.film or entry.kind is TitleKind.MOVIE or kinds[file_id] is Kind.MOVIE
         files = _facts(conn, list(kinds))
@@ -315,10 +325,16 @@ class Identifier:
                     parsed = replace(parsed, season=0)
             elif facts.id in through:
                 parsed = replace(parsed, folder_season=None)  # its number places it
-            where = None if film else _placement(parsed, entry, home)
+            told = _season_told(facts, file_id, as_kind, season, alike=alike)
+            if film:
+                where = None
+            elif told is not None:
+                where = _in_season(parsed, entry, home, told)
+            else:
+                where = _placement(parsed, entry, home)
             if where is None and not film and (as_kind is Kind.EPISODE or facts.id in kept):
                 if facts.id == file_id:
-                    raise UnplacedError(_which_episode(entry, parsed.episode))
+                    raise UnplacedError(_which_episode(entry, home, parsed.episode, told))
                 unfit.append(facts.id)
                 continue
             placing.append((facts, where, as_kind))
@@ -950,10 +966,67 @@ def _placed_in(conn: sqlite3.Connection, release: PurePath, home: _Home) -> list
     ]
 
 
-def _which_episode(entry: Anime, number: int | None) -> str:
+def _season_told(
+    facts: FileFacts, file_id: int, as_kind: Kind, season: int | None, *, alike: bool
+) -> int | None:
+    """The season the owner gives a file: theirs, and with `alike` the others' whose names (and
+    folders) say none of their own. Only an episode has one: a special's is 0."""
+    if season is None or as_kind is not Kind.EPISODE:
+        return None
+    if facts.id == file_id:
+        return season
+    own = facts.parsed.season is not None or facts.parsed.folder_season is not None
+    return season if alike and not own else None
+
+
+def _in_season(parsed: ParsedName, entry: Anime, home: _Home, season: int) -> Placement | None:
+    """Where an episode goes that the owner says is in `season`: there in the title's show (see
+    in_season). A title Kura knows from AniList alone is one season, its entry's: a later season's
+    entry holds its episodes by its own numbers, and the first season's none of a later one's."""
+    if home.show is not None:
+        return in_season(parsed, home.show, season)
+    if season > 1 and not _later_season(entry):
+        return None
+    return _by_anilist_number(parsed, entry)
+
+
+def _later_season(entry: Anime) -> bool:
+    """Whether an AniList entry is a later season of a series: one with a series before it."""
+    return any(
+        related.relation == "PREQUEL" and related.kind is TitleKind.SERIES
+        for related in entry.related
+    )
+
+
+def _which_episode(entry: Anime, home: _Home, number: int | None, season: int | None) -> str:
+    """What to ask the owner about a file Kura can't place as their choice says."""
     if number is None:
         return "Which episode is it? Kura can't tell from its name."
-    return f"Which episode is it? {entry.title} has no episode {number}."
+    show = home.show
+    if season is None or (show is None and (season == 1 or _later_season(entry))):
+        return f"Which episode is it? {entry.title} has no episode {number}."
+    if show is None:
+        return (
+            f"Which season is it? Kura knows {entry.title} from AniList alone, where each season"
+            f" is an anime of its own: search for its season {season} and choose that."
+        )
+    held = show.season(season)
+    if not held:
+        return f"Which season is it? {show.title} has {_seasons(show.seasons)}."
+    count = "1 episode" if len(held) == 1 else f"{len(held)} episodes"
+    return f"Which episode is it? Season {season} of {show.title} has {count}."
+
+
+def _seasons(numbers: Sequence[int]) -> str:
+    """A show's seasons in words: "seasons 1 to 9", "only season 1"."""
+    if not numbers:
+        return "no seasons listed yet"
+    if len(numbers) == 1:
+        return f"only season {numbers[0]}"
+    if list(numbers) == list(range(numbers[0], numbers[-1] + 1)):
+        return f"seasons {numbers[0]} to {numbers[-1]}"
+    *rest, last = (str(number) for number in numbers)
+    return f"seasons {', '.join(rest)} and {last}"
 
 
 def _find(tmdb: Tmdb, entry: Anime, media: str) -> Hit | None:

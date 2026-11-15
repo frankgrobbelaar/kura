@@ -179,7 +179,9 @@ season, by its first day, or a special among the show's specials, by its names o
 day). Only the links of entries the library holds tie its titles into franchises, so what's
 looked up beyond them never joins two cards in the Library. A file Kura isn't sure about waits
 for the owner,
-whose choice is pinned (an episode Kura can't place asks for its number), or who sets it aside as
+whose choice is pinned (an episode Kura can't place asks for its number; a season and number
+the owner gives place it exactly there among the title's seasons, `placing.in_season`, and the
+season goes for the files alike whose names give none), or who sets it aside as
 not anime, pinned too; the files set aside are listed, and one taken back waits again, looked up
 afresh at the next scan (`Identifier.unignore`). Offline, identification waits for the next scan and
 the scan says so. A title's match can be changed for all its files at once (`Identifier.rematch`),

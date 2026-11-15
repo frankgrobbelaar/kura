@@ -4164,6 +4164,18 @@
             ],
             "title": "Episode"
           },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
           "title": {
             "anyOf": [
               {

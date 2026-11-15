@@ -84,6 +84,24 @@ def place(parsed: ParsedName, show: Show, entry: Anime | None = None) -> Placeme
     return found
 
 
+def in_season(parsed: ParsedName, show: Show, season: int) -> Placement | None:
+    """Where an episode goes that the owner says is in `season` of the show: its number there, as
+    the show lists the season, or else its number counted through the show when that lands in the
+    season ("Dragon Ball Z - 080" is season 3's sixth). Whatever season its name or its AniList
+    entry's first day would give, the owner's word counts. None when the season doesn't hold it."""
+    number = parsed.episode
+    if number is None:
+        return None
+    listed = {episode.number for episode in show.season(season)}
+    if number in listed:
+        last = parsed.episode_end
+        if last is not None and not (number < last and last in listed):
+            last = None
+        return Placement(season, number, last, How.NUMBERED)
+    found = _from(show_episodes(show), number - 1, parsed, How.STRAIGHT)
+    return found if found is not None and found.season == season else None
+
+
 def numbered_through(files: Iterable[FileFacts], show: Show) -> set[int]:
     """The files (by id) in a season's folder that count straight through the show, not from 1
     in each season: "Season 02/My Hero Academia - 14" after season 1's 13 is season 2's first.
