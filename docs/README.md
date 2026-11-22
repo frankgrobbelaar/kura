@@ -26,17 +26,17 @@ Every tool Kura uses, its version on 2026-10-10, and the page that explains how 
 | TypeScript | 7.0 | Typed UI code (the native compiler) | [react.md](stack/react.md) |
 | Vite | 8.3 | Dev server and bundler for the UI | [react.md](stack/react.md) |
 | React Router | 8.5 | Navigation between sections | [react.md](stack/react.md) |
-| TanStack Query | 5.105 | Fetching and caching engine data | [react.md](stack/react.md) |
+| TanStack Query | 5.108 | Fetching and caching engine data | [react.md](stack/react.md) |
 | Biome | 2.6 | Lint and format for the UI | [react.md](stack/react.md) |
 | Tailwind CSS | 4.3 | Styling, fed by the Cinema tokens | [tailwind.md](stack/tailwind.md) |
 | shadcn/ui, Radix | shadcn 4.21, radix-ui 1.8 | Accessible component starting points | [tailwind.md](stack/tailwind.md) |
-| Lucide | 1.62 | Icons | [tailwind.md](stack/tailwind.md) |
+| Lucide | 1.77 | Icons | [tailwind.md](stack/tailwind.md) |
 | Fontsource | 5.3 | Manrope and Geist Mono, bundled for offline use | [tailwind.md](stack/tailwind.md) |
 | Python | 3.14 | The engine's language | [python.md](stack/python.md) |
 | uv | 0.13 | Python, packages, lockfile, running tools | [python.md](stack/python.md) |
 | Ruff, Pyright | 0.17, 1.1.414 | Python lint, format and strict types | [python.md](stack/python.md) |
-| FastAPI, Uvicorn, Pydantic | 0.162, 0.54, 2.14 | The engine's local API | [fastapi.md](stack/fastapi.md) |
-| Typer | 0.27 | The engine's command line | [fastapi.md](stack/fastapi.md) |
+| FastAPI, Uvicorn, Pydantic | 0.165, 0.54, 2.14 | The engine's local API | [fastapi.md](stack/fastapi.md) |
+| Typer | 0.29 | The engine's command line | [fastapi.md](stack/fastapi.md) |
 | SQLite | bundled with Python | Kura's one database file | [sqlite.md](stack/sqlite.md) |
 | anitopy | 2.1.1 | Reading anime file names | [anitopy.md](stack/anitopy.md) |
 | ffmpeg | 9.0.2 (downloaded on first run) | Reading what each video holds, and converting it | [ffmpeg.md](stack/ffmpeg.md) |
@@ -46,9 +46,9 @@ Every tool Kura uses, its version on 2026-10-10, and the page that explains how 
 | NVENC, AMF, Quick Sync; Windows' hardware listing | in ffmpeg's build; Windows 10 and 11 | What each PC can do: the encoder it has, the AI model, Anime4K and Whisper there, and its own times | [hardware.md](stack/hardware.md) |
 | AniList | GraphQL API, no key | Which anime a file is: titles, kinds, how series connect | [anilist.md](stack/anilist.md) |
 | TMDB | API v3, the owner's key | Episode lists, titles, air dates and artwork, as Plex shows them | [tmdb.md](stack/tmdb.md) |
-| watchdog | 6.0 | Noticing new, removed and renamed videos in the library folders | [watchdog.md](stack/watchdog.md) |
+| watchdog | 7.1 | Noticing new, removed and renamed videos in the library folders | [watchdog.md](stack/watchdog.md) |
 | PyInstaller | 6.22 | Bundles the engine with its own Python | [pyinstaller.md](stack/pyinstaller.md) |
-| Vitest, Testing Library, pytest | 5.0, 16.3, 9.1 | Tests | [testing.md](stack/testing.md) |
+| Vitest, Testing Library, pytest | 5.1, 16.3, 9.2 | Tests | [testing.md](stack/testing.md) |
 | GitHub Actions | | CI and releases | [github-actions.md](stack/github-actions.md) |
 | NSIS | via Tauri | The Windows installer | [tauri.md](stack/tauri.md#installer) |
 

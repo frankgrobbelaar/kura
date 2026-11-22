@@ -1,6 +1,6 @@
 # watchdog (noticing changes in the library folders)
 
-[watchdog](https://github.com/gorakhargosh/watchdog) 6.0 (Apache-2.0) tells Kura when a file in a
+[watchdog](https://github.com/gorakhargosh/watchdog) 7.1 (Apache-2.0) tells Kura when a file in a
 library folder is added, removed, renamed or written, the moment Windows knows
 (`ReadDirectoryChangesW`), without walking the folders on a timer. Walking every few minutes would
 keep sleeping disks awake; being told costs nothing.
@@ -38,9 +38,10 @@ look carries on.
 - A folder moved out of a watched folder, or deleted, comes as a "deleted" event that says it's a
   file (the folder is gone, so Windows can't tell); Kura asks its database whether it held videos
   there.
-- watchdog 6.0 closes a folder's handle itself when the folder goes, and again when the observer
-  is stopped. Windows may have given that number to another of Kura's files by then (the
-  database's), and closing it crashed the engine, so Kura's observer uses its own emitter
-  (`_Emitter` in kura/watch.py) that closes the handle once only.
+- watchdog 7 closes a folder's handle once, in the thread that reads the folder, whether the
+  folder goes or the observer is stopped. watchdog 6.0 closed it twice, and by the second time
+  Windows could have given that number to another of Kura's files (the database's): closing it
+  crashed the engine, so Kura had its own emitter until 7 (`tests/test_watch.py` still checks
+  the handle is closed once).
 - PyInstaller bundles watchdog without help; `tests/test_cli.py` (with `KURA_ENGINE_EXE`) starts
   the bundled engine, which imports it.
